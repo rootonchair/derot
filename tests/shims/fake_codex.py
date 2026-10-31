@@ -109,8 +109,7 @@ def main():
                             "session": os.environ.get("DEROT_SESSION"),
                             "codex_home_env": os.environ.get("CODEX_HOME")}) + "\n")
     print(f"[fake-codex] home={home} args={' '.join(args)}", flush=True)
-    fire("SessionStart", source="resume" if resumed else "startup")
-    turn = 0
+    turn = 0  # like real Codex 0.164: SessionStart (fresh sessions only) comes with turn 1
     while True:
         print("› ", end="", flush=True)
         line = sys.stdin.readline()
@@ -122,6 +121,8 @@ def main():
             continue
         turn += 1
         turn_id = f"t{turn}"
+        if turn == 1 and not resumed:
+            fire("SessionStart", source="startup")
         message("user", "<environment_context>cwd</environment_context>")  # injected
         message("user", prompt)
         with open(os.path.join(home, "session_index.jsonl"), "a") as f:

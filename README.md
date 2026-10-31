@@ -188,9 +188,11 @@ the status hook itself go to `~/.derot/hook-errors.log` on that machine.
 - **Session shows "needs you: Claude hasn't started yet"**: Claude is on a screen that comes
   before the session, such as "trust this folder?" or a new account's login. Press Enter (or
   click the right panel) and answer it. If nothing is there, press `u` to reinstall the hooks.
-- **Codex session shows "needs you: Codex isn't reporting yet"**: Codex only runs hooks
-  you've approved. Press Enter on the session (or click the right panel), type `/hooks`, and
-  approve derot's hooks. Codex asks again after derot updates its hook.
+- **Codex session shows "needs you: Codex isn't running derot's hooks yet"**: Codex only
+  runs hooks you've approved. Press Enter on the session (or click the right panel), type
+  `/hooks`, and trust derot's hooks (`t`). It's once per account folder. A Codex session that
+  has started but hasn't had a prompt yet shows idle: Codex reports nothing before the first
+  prompt.
 - **Session stuck on idle**: status hooks are missing for that account/host. Starting a
   session sets them up; otherwise press `u` (or run `derot setup`).
 - **Two accounts log each other out on the Mac**: Claude Code stores logins in the macOS

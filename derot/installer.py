@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Set, Tuple
 
 from . import remote
 from .config import Account, Config, Host
@@ -169,9 +169,10 @@ def _hint(tool: str, host: Host, is_mac: bool) -> str:
 
 
 HOOKS_PRESENT_SCRIPT = r"""
-import hashlib, os, sys
+import hashlib, os, re, sys
 p = os.path.join(os.path.expanduser(sys.argv[1]), sys.argv[3] if len(sys.argv) > 3
                  else "settings.json")
+events = [e for e in (sys.argv[4] if len(sys.argv) > 4 else "").split(",") if e]
 try:
     with open(os.path.expanduser("~/.derot/hook.py"), "rb") as f:
         hook = hashlib.sha256(f.read()).hexdigest()
@@ -182,8 +183,20 @@ try:
         wired = "/.derot/hook.py" in f.read()
 except Exception:
     wired = False
-print("no hook.py" if not hook else "different hook.py" if hook != sys.argv[2]
-      else "not in " + os.path.basename(p) if not wired else "yes")
+answer = ("no hook.py" if not hook else "different hook.py" if hook != sys.argv[2]
+          else "not in " + os.path.basename(p) if not wired else "yes")
+if answer == "yes" and events:
+    # Codex records each approved hook as [hooks.state."<hooks.json>:<event>:<i>:<j>"]
+    try:
+        with open(os.path.join(os.path.dirname(p), "config.toml")) as f:
+            toml = f.read()
+    except Exception:
+        toml = ""
+    snake = lambda e: re.sub(r"(?<!^)(?=[A-Z])", "_", e).lower()
+    approved = all(re.search(r'\[hooks\.state\."%s:%s:' % (re.escape(p), snake(e)), toml)
+                   for e in events)
+    answer = "yes" if approved else "yes, not approved"
+print(answer)
 """
 
 
@@ -191,19 +204,30 @@ def hook_hash() -> str:
     return hashlib.sha256(hook_source().encode()).hexdigest()
 
 
+# (host, Codex folder) pairs whose hooks are installed but not approved in /hooks yet, from
+# the last check; the poll uses it to tell "waiting for approval" from "no prompt yet"
+CODEX_UNAPPROVED: Set[Tuple[str, str]] = set()
+
+
 def hooks_present(host: Host, config_dir: str, agent: str = "claude") -> bool:
     """True if this version's hook script is on the host (not cut off, not an older one)
     and wired into that account folder's settings. A failed check counts as present:
-    starting shouldn't depend on it."""
+    starting shouldn't depend on it. For Codex, also notes whether they're approved."""
+    events = ",".join(CODEX_EVENTS) if agent == "codex" else ""
     proc = remote.python(host, HOOKS_PRESENT_SCRIPT, config_dir, hook_hash(),
-                         SETTINGS_FILE[agent], timeout=15)
+                         SETTINGS_FILE[agent], events, timeout=15)
     if proc.returncode != 0:
         log.warning("couldn't check hooks on %s: %s", host.name, remote.full_error(proc))
         return True
     answer = remote.last_line(proc.stdout)
-    if answer != "yes":
+    if agent == "codex":
+        if answer == "yes, not approved":
+            CODEX_UNAPPROVED.add((host.name, config_dir))
+        else:
+            CODEX_UNAPPROVED.discard((host.name, config_dir))
+    if not answer.startswith("yes"):
         log.info("hooks for %s on %s: %s", config_dir, host.name, answer or "no answer")
-    return answer == "yes"
+    return answer.startswith("yes")
 
 
 def ensure_hooks(cfg: Config, host: Host, account: Account,
@@ -287,7 +311,7 @@ def setup_host(cfg: Config, host: Host, remove: bool, out: Callable[[str], None]
              "" if proc.returncode == 0 else remote.full_error(proc))
         if codex and not remove and proc.returncode == 0:
             out(f"  ! {account.name}: Codex runs new hooks only after you approve them: open a "
-                "Codex session and choose them in /hooks (once, and again after updates)")
+                "Codex session and trust them in /hooks (once per account folder)")
     return ok
 
 

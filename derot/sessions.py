@@ -84,8 +84,8 @@ HOOK_MISSING = "status hooks not installed: run `derot setup`"
 NO_STATUS = ("Claude hasn't started yet, probably a login, trust or first-run screen "
              "(Enter or click to answer it; if nothing's there, press u)")
 # Codex skips hooks nobody has approved yet, so that's the likeliest reason for silence
-NO_STATUS_CODEX = ("Codex isn't reporting yet, probably derot's hooks waiting for approval "
-                   "in /hooks, or a login or trust screen (Enter or click to answer it)")
+NO_STATUS_CODEX = ("Codex isn't running derot's hooks yet: approve them in /hooks (Enter or "
+                   "click to type it)")
 NO_STATUS_SECS = 15
 
 _online: Dict[str, bool] = {}  # last known reachability per host, to log only changes
@@ -218,12 +218,18 @@ def resolve(cfg: Config, s: SessionDef, hp: HostPoll) -> Status:
         st.state = "idle"
         if not hp.hook:
             st.message = HOOK_MISSING
+        elif not data and st.account.agent == "codex":
+            # Codex (0.164) sends nothing until the first prompt, not even SessionStart, so
+            # silence is normal; it only needs you if derot's hooks aren't approved yet
+            from .installer import CODEX_UNAPPROVED
+            if (st.host.name, st.account.config_dir) in CODEX_UNAPPROVED \
+                    and hp.age.get(key, 0) > NO_STATUS_SECS:
+                st.state, st.message = "waiting", NO_STATUS_CODEX
         elif not data and hp.age.get(key, 0) > NO_STATUS_SECS:
             # start deletes the state file and SessionStart writes it straight away, unless
             # Claude is stuck before the session starts: "trust this folder?", a new
             # account's login / first-run screens (seen on 2.1.316; no hook fires for them)
-            st.state = "waiting"
-            st.message = NO_STATUS_CODEX if st.account.agent == "codex" else NO_STATUS
+            st.state, st.message = "waiting", NO_STATUS
     return st
 
 

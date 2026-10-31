@@ -2,11 +2,11 @@
 
 | Field | Value |
 |---|---|
-| Status | in progress |
+| Status | done |
 | Type | feature |
 | Priority | P1 |
 | Size | M |
-| Verified | tests with a fake Codex; listing checked on real Codex 0.164 sessions |
+| Verified | tests with a fake Codex; checked live on Codex 0.164.0 |
 | Source | user request, 2026-11-01 |
 
 ## What
@@ -34,5 +34,23 @@ folder a `CODEX_HOME`; machines get a `codex:` command.
 - [x] Config, setup (hooks.json), start/resume/login, status, conversation view, resume
       picker and the account form handle Codex; tests in `tests/test_codex.py`.
 - [x] Listing and conversation parsing checked on real Codex 0.164 rollouts (read-only).
-- [ ] Checked live on a logged-in Codex: hooks approved in `/hooks`, then a prompt →
+- [x] Checked live on a logged-in Codex: hooks approved in `/hooks`, then a prompt →
       approval → done, Esc → interrupted, resume.
+
+## Live check (2026-11-01, Codex 0.164.0, real ~/.codex)
+
+- Codex found derot's 8 hooks in `hooks.json` and asked for review; after `t` (trust all)
+  in `/hooks` all were active, recorded as `[hooks.state."<hooks.json>:<event>:0:0"]
+  trusted_hash` in config.toml. The hash covers the hook entry (command), not hook.py, so
+  derot updates don't need re-approval unless the entries change.
+- Prompt → working → "using Bash" → done, with the reply as the message.
+- With "Ask for approval" permissions: PermissionRequest → needs you ("wants to use Bash:
+  touch …"); `1` + mark_answered → "answered, working…" → done.
+- Esc while working → Interrupt → idle "interrupted".
+- Listing showed the real conversation (thread title, first and last prompt); the stored id
+  matched; `codex resume <id>` reopened it with the same session id.
+- Findings, fixed: Codex sends **no SessionStart at launch** (fresh: it comes with the first
+  prompt; resume: none), so "no status after 15 s = needs you" was wrong for Codex. Now a
+  silent Codex session is idle unless the hooks aren't approved (read from config.toml).
+  Codex's own "update available" prompt can also appear before a session starts.
+

@@ -74,9 +74,10 @@ def test_codex_session_status_flow(env, capsys):
     cli.main(["setup"])
     assert cli.main(["start", "app", "-d"]) == 0
     capsys.readouterr()
-    wait_for(lambda: status(cfg).session_id, what="SessionStart")
+    wait_for(lambda: runs(env), what="codex started")
     assert runs(env)[0]["codex_home_env"] == str(env.home / ".codex-work")
     assert runs(env)[0]["args"] == []
+    assert status(cfg).state == "idle"  # Codex says nothing until the first prompt
 
     env.send("app", "fix the tests")
     st = wait_for(lambda: status(cfg).state == "waiting" and status(cfg), what="approval")
@@ -98,8 +99,9 @@ async def test_codex_resume_picker_and_c(env, capsys):
     cli.main(["setup"])
 
     def talk(prompt):
+        n = len(runs(env))
         cli.main(["start", "app", "-d"])
-        wait_for(lambda: status(cfg).session_id, what="SessionStart")
+        wait_for(lambda: len(runs(env)) > n, what="codex started")
         env.send("app", prompt)
         wait_for(lambda: status(cfg).state == "waiting", what="approval")
         env.send("app", "")
@@ -132,19 +134,44 @@ async def test_codex_resume_picker_and_c(env, capsys):
             if len(runs(env)) == 3:
                 break
     assert runs(env)[-1]["args"] == ["resume", second]
-    wait_for(lambda: status(cfg).session_id == second, what="resumed")
+    env.send("app", "one more thing")  # (Codex reports nothing before the first prompt)
+    wait_for(lambda: status(cfg).session_id == second, what="the same conversation")
     cli.main(["stop", "app"])
     assert cli.main(["start", "app", "-d", "--resume", first]) == 0
     wait_for(lambda: len(runs(env)) == 4, what="resumed run")
     assert runs(env)[-1]["args"] == ["resume", first]
 
 
-def test_codex_without_approved_hooks_says_so():
+def test_silent_codex_is_idle_unless_its_hooks_need_approval(monkeypatch):
+    """Real Codex 0.164 sends nothing (not even SessionStart) before the first prompt, so
+    silence only means "needs you" when derot's hooks aren't approved in /hooks."""
     cfg = config.parse({"accounts": {"oa": {"agent": "codex"}},
                         "sessions": [{"name": "a", "dir": "/x", "account": "oa"}]})
     out = "@@TMUX\ncc-a|0|1000\n@@NOW\n1060\n@@STATE\n@@HOOK\nyes\n@@END\n"
+    monkeypatch.setattr(installer, "CODEX_UNAPPROVED", set())
+    st = sessions.resolve(cfg, cfg.sessions[0], sessions.parse_poll(out))
+    assert st.state == "idle" and st.message == ""
+    installer.CODEX_UNAPPROVED.add(("local", "~/.codex"))
     st = sessions.resolve(cfg, cfg.sessions[0], sessions.parse_poll(out))
     assert st.state == "waiting" and "/hooks" in st.message
+
+
+def test_codex_hook_approval_is_read_from_config_toml(env, monkeypatch):
+    cfg = codex_config(env)
+    monkeypatch.setattr(installer, "CODEX_UNAPPROVED", set())
+    assert installer.setup_host(cfg, cfg.hosts["local"], False, lambda line: None)
+    host, home = cfg.hosts["local"], env.home / ".codex-work"
+    assert installer.hooks_present(host, "~/.codex-work", "codex")
+    assert ("local", "~/.codex-work") in installer.CODEX_UNAPPROVED
+    # what Codex writes when you trust them in /hooks
+    hooks_json = str(home / "hooks.json")
+    (home / "config.toml").write_text("".join(
+        f'[hooks.state."{hooks_json}:{event}:0:0"]\ntrusted_hash = "sha256:x"\n'
+        for event in ("session_start", "user_prompt_submit", "pre_tool_use",
+                      "permission_request", "post_tool_use", "stop", "interrupt",
+                      "session_end")))
+    assert installer.hooks_present(host, "~/.codex-work", "codex")
+    assert ("local", "~/.codex-work") not in installer.CODEX_UNAPPROVED
 
 
 def test_codex_start_and_login_commands(env, monkeypatch):
