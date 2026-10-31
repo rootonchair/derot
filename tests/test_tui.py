@@ -239,3 +239,14 @@ sessions:
         assert all(row[-1].plain.startswith("needs you") for row in rows)  # status kept
         assert rows[0][1].plain.endswith("…")  # long name shortened
         assert "@cloud_gpu" in rows[1][1].plain  # where a remote session runs
+
+        # what's actually drawn: a column keeps its widest cell ever, so after a redraw
+        # with a longer status the columns must still fit (this cut "stopped · 5h" off)
+        def drawn_width():
+            return sum(col.get_render_width(table) for col in table.columns.values())
+        app.apply_poll([Status(s, cfg.host_of(s), cfg.account_of(s), state="stopped",
+                               ts=time.time() - 5 * 3600) for s in cfg.sessions], {})
+        await pilot.pause()
+        assert drawn_width() <= table.size.width, (drawn_width(), table.size.width)
+        status = table.get_row_at(0)[-1]
+        assert (status.plain if hasattr(status, "plain") else str(status)) == "stopped · 5h"

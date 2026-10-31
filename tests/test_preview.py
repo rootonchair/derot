@@ -277,3 +277,22 @@ async def test_click_on_the_right_panel_starts_typing(env, monkeypatch):
         await pilot.pause()
         await pilot.click(offset=(region.x + 2, region.bottom - 2))  # behind a form: nothing
         assert app.live is None
+
+
+async def test_stopped_session_without_conversation_says_so(env, monkeypatch):
+    """It used to fall back to the live screen, which a stopped session doesn't have:
+    "couldn't read the screen: can't find session"."""
+    def no_screen(cfg, name):
+        raise sessions.SessionError(f"couldn't read the screen: can't find session: {name}")
+    monkeypatch.setattr(sessions, "screen", no_screen)
+    monkeypatch.setattr(sessions, "conversation", lambda cfg, name, transcript, limit=40: [])
+    env.write_config("sessions: [{name: a, dir: /x}]\n")
+    cfg = config.load()
+    app = Derot(cfg, poll_on_mount=False)
+    async with app.run_test(size=(150, 40)) as pilot:
+        s = cfg.sessions[0]
+        app.apply_poll([sessions.Status(s, cfg.host_of(s), cfg.account_of(s), state="stopped",
+                                        transcript="/gone.jsonl")], {})
+        await wait_until(pilot, lambda: "no conversation yet" in preview_text(app),
+                         "the stopped session's preview")
+        assert "couldn't" not in preview_text(app)

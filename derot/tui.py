@@ -221,8 +221,7 @@ class Derot(App):
 
     def on_mount(self) -> None:
         table = self.w_table
-        for key, label in [("icon", " "), ("name", "Session"), ("status", "Status")]:
-            table.add_column(label, key=key)
+        self._add_columns()
         table.focus()
         self.screen.set_class(self.size.width < NARROW_WIDTH, "narrow")
         self.set_interval(PREVIEW_SECS, self.refresh_preview)
@@ -330,7 +329,10 @@ class Derot(App):
         table = self.w_table
         keep = self.selected_name()
         now = time.time()
-        table.clear()
+        # columns too: a column keeps the width of the widest cell it ever had, so names
+        # drawn before the panel had its width would push the status out for good
+        table.clear(columns=True)
+        self._add_columns()
         status = {st.name: sessions.status_text(st, now) for st in self.statuses}
         # one row must fit the panel: icon, name, status, 1 cell of padding around each of the
         # 3 columns and room for a scrollbar; long names are shortened, status never is
@@ -358,6 +360,10 @@ class Derot(App):
                 table.move_cursor(row=table.get_row_index(keep), animate=False)
             except Exception:
                 pass
+
+    def _add_columns(self) -> None:
+        for key, label in [("icon", " "), ("name", "Session"), ("status", "Status")]:
+            self.w_table.add_column(label, key=key)
 
     def w_left_width(self) -> int:
         return 52  # #left's CSS width, before the first layout
@@ -434,7 +440,8 @@ class Derot(App):
             return
         try:
             items = [] if kind == "screen" else sessions.conversation(self.cfg, name, transcript)
-            if kind == "conversation" and not items and self.preview_mode == "auto":
+            running = next((st.running for st in self.statuses if st.name == name), False)
+            if kind == "conversation" and not items and self.preview_mode == "auto" and running:
                 kind = "screen"  # nothing said yet: the screen is more useful
             if kind == "screen":
                 scr = sessions.screen(self.cfg, name)
