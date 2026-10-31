@@ -1,0 +1,279 @@
+"""`ccdeck setup [--remove]`: install the status hook and merge it into settings.json."""
+
+from __future__ import annotations
+
+import hashlib
+from pathlib import Path
+from typing import Callable, Dict, List
+
+from . import remote
+from .config import Config, Host
+from .log import log
+
+EVENTS = [
+    "SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse",
+    "Notification", "Stop", "SessionEnd",
+]
+# Newer Claude Code events that make status more accurate (permission prompts, Esc
+# interrupts, API errors). Only registered where that host's Claude Code knows them, since
+# older versions may reject unknown event names in settings.json.
+EXTRA_EVENTS = ["PermissionRequest", "PostToolUseFailure", "StopFailure"]
+TOOL_EVENTS = ("PreToolUse", "PostToolUse", "PermissionRequest", "PostToolUseFailure")
+
+CHECK_SCRIPT = r"""
+uname -s
+for t in tmux python3; do
+  if command -v "$t" >/dev/null 2>&1; then echo "$t=yes"; else echo "$t=no"; fi
+done
+# the login shell only prints its environment (works in fish/csh too); sh does the rest
+lp=$("${SHELL:-/bin/sh}" -lic env </dev/null 2>/dev/null | grep '^PATH=' | tail -n 1)
+c=$1; case $c in "~/"*) c=$HOME/${c#"~/"};; esac
+p=$([ -n "$lp" ] && PATH=${lp#PATH=}; command -v "$c" 2>/dev/null | tail -n 1)
+if [ -n "$p" ]; then
+  echo "claude=yes"
+  python3 - "$p" <<'PY' 2>/dev/null
+import mmap, os, sys
+names = ("PermissionRequest", "PostToolUseFailure", "StopFailure")
+try:
+    with open(os.path.realpath(sys.argv[1]), "rb") as f:
+        m = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+        print("events=" + ",".join(n for n in names if m.find(b'"%s"' % n.encode()) != -1))
+except Exception:
+    pass
+PY
+else
+  echo "claude=no"
+fi
+echo "@@END"
+"""
+
+# written next to it, then renamed: an interrupted upload never leaves a cut-off hook.py
+# (every hook call would fail, and the session would stay idle with no visible error)
+UPLOAD_SCRIPT = (
+    'mkdir -p "$HOME/.ccdeck/state" && t="$HOME/.ccdeck/.hook.py.$$" '
+    '&& cat > "$t" && chmod 755 "$t" && mv -f "$t" "$HOME/.ccdeck/hook.py" '
+    '|| { rm -f "$t"; exit 1; }'
+)
+
+MERGE_SCRIPT = r"""
+import json, os, shutil, sys, tempfile
+cdir = os.path.expanduser(sys.argv[1])
+mode = sys.argv[2]
+events = [e for e in sys.argv[3].split(",") if e]
+installing = set(e for e in sys.argv[4].split(",") if e) if len(sys.argv) > 4 else set(events)
+tool_events = ("PreToolUse", "PostToolUse", "PermissionRequest", "PostToolUseFailure")
+path = os.path.join(cdir, "settings.json")
+shown = os.path.join(sys.argv[1], "settings.json")
+MARK = "/.ccdeck/hook.py"
+
+if os.path.exists(path):
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except Exception as e:
+        print("%s is not valid JSON (%s); fix it first" % (shown, e))
+        sys.exit(1)
+    if not isinstance(data, dict):
+        print("%s is not a JSON object; fix it first" % shown)
+        sys.exit(1)
+    bak = path + ".ccdeck-bak"
+    if not os.path.exists(bak):
+        shutil.copy2(path, bak)
+else:
+    if mode == "remove":
+        print("no %s, nothing to remove" % shown)
+        sys.exit(0)
+    os.makedirs(cdir, exist_ok=True)
+    data = {}
+
+hooks = data.get("hooks")
+if hooks is None:
+    hooks = {}
+if not isinstance(hooks, dict):
+    print("%s: 'hooks' is not an object; fix it first" % shown)
+    sys.exit(1)
+
+for ev in events:
+    groups = hooks.get(ev)
+    if not isinstance(groups, list):
+        groups = [] if groups is None else [groups]
+    kept_groups = []
+    for g in groups:
+        if isinstance(g, dict) and isinstance(g.get("hooks"), list):
+            hs = g["hooks"]
+            kept = [h for h in hs if not (isinstance(h, dict) and MARK in str(h.get("command", "")))]
+            if len(kept) < len(hs):
+                if not kept:
+                    continue
+                g = dict(g)
+                g["hooks"] = kept
+        kept_groups.append(g)
+    if mode == "install" and ev in installing:
+        group = {"hooks": [{"type": "command",
+                            "command": "python3 ~/.ccdeck/hook.py " + ev,
+                            "timeout": 10}]}
+        if ev in tool_events:
+            group = {"matcher": "*", "hooks": group["hooks"]}
+        kept_groups.append(group)
+    if kept_groups:
+        hooks[ev] = kept_groups
+    else:
+        hooks.pop(ev, None)
+
+if hooks:
+    data["hooks"] = hooks
+else:
+    data.pop("hooks", None)
+
+# write through a symlink (settings kept in a dotfiles repo) and keep the file's mode
+real = os.path.realpath(path)
+fd, tmp = tempfile.mkstemp(dir=os.path.dirname(real), prefix=".settings-", suffix=".json")
+with os.fdopen(fd, "w") as f:
+    json.dump(data, f, indent=2)
+    f.write("\n")
+if os.path.exists(real):
+    os.chmod(tmp, os.stat(real).st_mode & 0o777)
+os.replace(tmp, real)
+print(("hooks added to " if mode == "install" else "hooks removed from ") + shown)
+"""
+
+
+def hook_source() -> str:
+    return (Path(__file__).parent / "hook.py").read_text()
+
+
+def _hint(tool: str, host: Host, is_mac: bool) -> str:
+    if tool == "tmux":
+        return "brew install tmux" if is_mac else "sudo apt install tmux"
+    if tool == "python3":
+        return "brew install python" if is_mac else "sudo apt install python3"
+    return f"install Claude Code there, or set `claude:` to its full path for host '{host.name}'"
+
+
+HOOKS_PRESENT_SCRIPT = r"""
+import hashlib, os, sys
+p = os.path.join(os.path.expanduser(sys.argv[1]), "settings.json")
+try:
+    with open(os.path.expanduser("~/.ccdeck/hook.py"), "rb") as f:
+        hook = hashlib.sha256(f.read()).hexdigest()
+except Exception:
+    hook = ""
+try:
+    with open(p) as f:
+        wired = "/.ccdeck/hook.py" in f.read()
+except Exception:
+    wired = False
+print("no hook.py" if not hook else "different hook.py" if hook != sys.argv[2]
+      else "not in settings.json" if not wired else "yes")
+"""
+
+
+def hook_hash() -> str:
+    return hashlib.sha256(hook_source().encode()).hexdigest()
+
+
+def hooks_present(host: Host, config_dir: str) -> bool:
+    """True if this version's hook script is on the host (not cut off, not an older one)
+    and wired into that account folder's settings. A failed check counts as present:
+    starting shouldn't depend on it."""
+    proc = remote.python(host, HOOKS_PRESENT_SCRIPT, config_dir, hook_hash(), timeout=15)
+    if proc.returncode != 0:
+        log.warning("couldn't check hooks on %s: %s", host.name, remote.full_error(proc))
+        return True
+    answer = remote.last_line(proc.stdout)
+    if answer != "yes":
+        log.info("hooks for %s on %s: %s", config_dir, host.name, answer or "no answer")
+    return answer == "yes"
+
+
+def ensure_hooks(cfg: Config, host: Host, config_dir: str,
+                 out: Callable[[str], None] = lambda line: None) -> bool:
+    """Set up hooks on the host if that account folder doesn't have them (e.g. a setup
+    that was interrupted). Returns False only if a needed setup failed."""
+    if hooks_present(host, config_dir):
+        return True
+    log.info("hooks missing for %s on %s: setting them up", config_dir, host.name)
+    return setup_host(cfg, host, False, out)
+
+
+def setup_host(cfg: Config, host: Host, remove: bool, out: Callable[[str], None]) -> bool:
+    label = "this Mac" if host.is_local else host.ssh
+    out(f"{host.name} ({label})")
+    log.info("setup%s on %s (%s)", " --remove" if remove else "", host.name, label)
+    ok = True
+
+    def mark(good: bool, text: str, detail: str = "") -> None:
+        nonlocal ok
+        ok = ok and good
+        out(f"  {'✓' if good else '✗'} {text}")
+        if good:
+            log.info("setup %s: ✓ %s", host.name, text)
+        else:
+            log.error("setup %s: ✗ %s%s", host.name, text, f"\n{detail}" if detail else "")
+
+    if not remove:
+        proc = remote.sh(host, CHECK_SCRIPT, (host.claude.split() or ["claude"])[0], timeout=40)
+        if proc.returncode != 0 or "@@END" not in proc.stdout:
+            mark(False, f"can't reach it: {remote.error_text(proc)}", remote.full_error(proc))
+            return False
+        lines = proc.stdout.splitlines()
+        is_mac = bool(lines) and lines[0].strip() == "Darwin"
+        found: Dict[str, bool] = {}
+        extras: List[str] = []
+        for ln in lines:
+            k, _, v = ln.strip().partition("=")
+            if k == "events":
+                extras = [e for e in EXTRA_EVENTS if e in v.split(",")]
+            elif v:
+                found[k] = v == "yes"
+        for tool in ("tmux", "python3", "claude"):
+            if found.get(tool):
+                mark(True, tool if tool != "claude" else f"claude ({host.claude})")
+            else:
+                mark(False, f"{tool} not found → {_hint(tool, host, is_mac)}")
+        if not found.get("python3"):
+            out("  (skipping hook install: python3 is required)")
+            return False
+
+        proc = remote.sh(host, UPLOAD_SCRIPT, input=hook_source())
+        if proc.returncode != 0:
+            mark(False, f"couldn't install ~/.ccdeck/hook.py: {remote.error_text(proc)}",
+                 remote.full_error(proc))
+            return False
+        mark(True, "hook installed at ~/.ccdeck/hook.py")
+    else:
+        probe = remote.sh(host, "echo ok")
+        if probe.returncode != 0:
+            mark(False, f"can't reach it: {remote.error_text(probe)}", remote.full_error(probe))
+            return False
+
+    mode = "remove" if remove else "install"
+    every = EVENTS + EXTRA_EVENTS  # always clean all of them, so upgrades/downgrades work
+    install = every if remove else EVENTS + extras
+    if not remove:
+        log.info("setup %s: extra events supported by its Claude Code: %s", host.name,
+                 ", ".join(extras) or "none")
+    for account in cfg.accounts_on(host.name):
+        proc = remote.python(host, MERGE_SCRIPT, account.config_dir, mode, ",".join(every),
+                             ",".join(install))
+        msg = remote.last_line(proc.stdout) or remote.error_text(proc)
+        mark(proc.returncode == 0, f"{account.name}: {msg}",
+             "" if proc.returncode == 0 else remote.full_error(proc))
+    return ok
+
+
+def setup(cfg: Config, remove: bool = False, out: Callable[[str], None] = print) -> int:
+    hosts = cfg.used_hosts()
+    if not hosts:
+        out("No sessions in the config yet, so there is nothing to set up.")
+        out(f"Add sessions to {cfg.path or 'the config'} and run `ccdeck setup` again.")
+        return 0
+    all_ok = True
+    for host in hosts:
+        all_ok = setup_host(cfg, host, remove, out) and all_ok
+    out("")
+    if all_ok:
+        out("All done." if not remove else "Status hooks removed.")
+    else:
+        out("Some steps failed (✗ above). Fix them and run `ccdeck setup` again.")
+    return 0 if all_ok else 1

@@ -1,0 +1,36 @@
+# ccdeck configuration
+# Docs: run `ccdeck --help`, or see the README.
+
+# Machines. "local" (this computer) always exists; add VMs reachable over SSH.
+hosts:
+  local:
+    claude: claude             # command or full path for Claude Code on this machine
+  # vm:
+  #   ssh: user@my-vm          # anything `ssh` accepts, incl. ~/.ssh/config aliases
+  #   claude: claude           # optional override
+
+# Claude accounts. Each account is a Claude Code config folder with its own login.
+accounts:
+  personal:
+    config_dir: ~/.claude      # Claude Code's default folder
+  # work:
+  #   config_dir: ~/.claude-work
+  #   env:                     # optional extra env vars for this account
+  #     ANTHROPIC_API_KEY: sk-ant-...
+
+# Sessions to manage. Each one runs in its own tmux session on its host.
+sessions: []
+  # - name: shop-api           # letters, digits, _ . - ; must be unique
+  #   host: local              # "local" or a key of hosts
+  #   dir: ~/code/shop-api     # project folder on that host (~ allowed)
+  #   account: personal        # key of accounts
+  #   note: payments refactor  # optional reminder shown in the UI
+  #   args: ""                 # optional extra flags for `claude`
+
+notify:
+  on_waiting: true             # alert when a session needs approval/input
+  on_done: true                # alert when a session finishes
+  sound: Glass                 # macOS sound name, "" = silent
+
+refresh: 3                     # poll interval in seconds (min 1)
+detach_key: C-q                # key that returns to ccdeck from a session

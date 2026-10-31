@@ -1,0 +1,20 @@
+#!/bin/sh
+# Fake ssh for tests: skips options, treats the first remaining arg as the host and runs
+# the rest with `sh -c`. Each host gets its own HOME and tmux socket dir under
+# $FAKE_SSH_ROOT/<host>, so a "VM" doesn't share state with the local machine.
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -o) shift 2 ;;
+    -t|-T|-q) shift ;;
+    *) break ;;
+  esac
+done
+host="${1#*@}"; shift
+if [ "$host" = "deadvm" ]; then
+  echo "ssh: connect to host deadvm port 22: Connection refused" >&2
+  exit 255
+fi
+root="${FAKE_SSH_ROOT:?}/$host"
+mkdir -p "$root/home" "$root/tmux"
+export HOME="$root/home" TMUX_TMPDIR="$root/tmux"
+exec sh -c "$*"
