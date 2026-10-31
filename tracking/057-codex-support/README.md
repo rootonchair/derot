@@ -54,3 +54,15 @@ folder a `CODEX_HOME`; machines get a `codex:` command.
   silent Codex session is idle unless the hooks aren't approved (read from config.toml).
   Codex's own "update available" prompt can also appear before a session starts.
 
+## Login (2026-11-01)
+
+- Login is per profile: `codex login status` → "Not logged in" (exit 1) for an empty
+  CODEX_HOME, "Logged in using ChatGPT" (exit 0) for a real one; credentials in `auth.json`.
+- Codex **ignores OPENAI_API_KEY in the environment** (0.164 shows its sign-in screen), so
+  derot pipes an account's key into `codex login --with-api-key` before starting (checked on
+  real Codex with a dummy key: "API key configured", no sign-in screen; nothing was sent).
+- On SSH machines `l` runs `codex login --device-auth` (the browser flow calls back to
+  localhost).
+- A profile with no `auth.json` (and no keychain store configured, no API key) shows "needs
+  you: Codex isn't logged in for account X: press l".
+

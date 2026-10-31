@@ -214,3 +214,57 @@ async def test_account_form_adds_a_codex_account(env):
     acct = results[0]
     assert (acct.agent, acct.config_dir, acct.env) == ("codex", "~/.codex-work",
                                                          {"OPENAI_API_KEY": "sk-test"})
+
+
+def test_codex_login_detection(env, monkeypatch):
+    """A new Codex profile has no auth.json: it needs a login, which derot says (rather
+    than blaming the hooks); an account with an API key logs itself in."""
+    cfg = codex_config(env)
+    monkeypatch.setattr(installer, "CODEX_NO_LOGIN", set())
+    assert installer.setup_host(cfg, cfg.hosts["local"], False, lambda line: None)
+    host, home = cfg.hosts["local"], env.home / ".codex-work"
+    installer.hooks_present(host, "~/.codex-work", "codex")
+    assert ("local", "~/.codex-work") in installer.CODEX_NO_LOGIN
+    out = "@@TMUX\ncc-app|0|1000\n@@NOW\n1060\n@@STATE\n@@HOOK\nyes\n@@END\n"
+    st = sessions.resolve(cfg, cfg.session("app"), sessions.parse_poll(out))
+    assert st.state == "waiting" and "isn't logged in for account oa: press l" in st.message
+    (home / "auth.json").write_text("{}")
+    installer.hooks_present(host, "~/.codex-work", "codex")
+    assert ("local", "~/.codex-work") not in installer.CODEX_NO_LOGIN
+    # an API-key account: never "not logged in" (the pane logs in with the key)
+    cfg.accounts["oa"].env = {"OPENAI_API_KEY": "sk-x"}
+    installer.CODEX_NO_LOGIN.add(("local", "~/.codex-work"))
+    st = sessions.resolve(cfg, cfg.session("app"), sessions.parse_poll(out))
+    assert "logged in" not in st.message
+
+
+@needs_tmux
+def test_codex_api_key_account_logs_itself_in(env, capsys):
+    (env.home / "app").mkdir()
+    env.write_config(f"""
+hosts: {{local: {{codex: "{env.codex}"}}}}
+accounts: {{oa: {{agent: codex, config_dir: ~/.codex-work, env: {{OPENAI_API_KEY: sk-secret-1}}}}}}
+sessions: [{{name: app, dir: ~/app, account: oa}}]
+""")
+    cfg = config.load()
+    assert "sk-secret-1" not in sessions.start_script(cfg, cfg.session("app"))
+    cli.main(["setup"])
+    assert cli.main(["start", "app", "-d"]) == 0
+    auth = env.home / ".codex-work" / "auth.json"
+    wait_for(auth.exists, what="codex login --with-api-key")
+    assert json.loads(auth.read_text()) == {"OPENAI_API_KEY": "sk-secret-1"}
+    assert "sk-secret-1" not in (env.home / ".derot" / "run" / "app.sh").read_text()
+
+
+def test_codex_login_on_an_ssh_machine_uses_a_device_code(env, monkeypatch):
+    env.write_config("""
+hosts: {vm: {ssh: me@vm}}
+accounts: {oa: {agent: codex, config_dir: ~/.codex-work}}
+sessions: [{name: app, host: vm, dir: ~/app, account: oa}]
+""")
+    cfg = config.load()
+    monkeypatch.setattr(remote, "interactive", lambda host, argv: 0)
+    sessions.login(cfg, "oa", "vm")
+    script = (env.vm_home() / ".derot" / "run" / "_login.sh").read_text()
+    assert "codex login --device-auth" in script
+

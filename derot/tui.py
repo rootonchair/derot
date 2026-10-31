@@ -940,7 +940,11 @@ class Derot(App):
         try:
             with self.suspend():
                 if self.cfg.accounts[account].agent == "codex":
-                    print(f"Running `codex login` for account {account} on {host}.")
+                    remote_host = not self.cfg.hosts[host].is_local
+                    how = "codex login --device-auth" if remote_host else "codex login"
+                    print(f"Running `{how}` for account {account} on {host}.")
+                    if remote_host:
+                        print("Open the link it shows on any device and enter the code.")
                     print("Finish signing in; you'll come back to derot when it's done.\n")
                 else:
                     print(f"Opening Claude Code for account {account} on {host}.")

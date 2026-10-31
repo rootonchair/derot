@@ -84,6 +84,8 @@ HOOK_MISSING = "status hooks not installed: run `derot setup`"
 NO_STATUS = ("Claude hasn't started yet, probably a login, trust or first-run screen "
              "(Enter or click to answer it; if nothing's there, press u)")
 # Codex skips hooks nobody has approved yet, so that's the likeliest reason for silence
+NO_LOGIN_CODEX = ("Codex isn't logged in for account {account}: press l to log in, or "
+                  "Enter to answer its sign-in screen")
 NO_STATUS_CODEX = ("Codex isn't running derot's hooks yet: approve them in /hooks (Enter or "
                    "click to type it)")
 NO_STATUS_SECS = 15
@@ -220,11 +222,16 @@ def resolve(cfg: Config, s: SessionDef, hp: HostPoll) -> Status:
             st.message = HOOK_MISSING
         elif not data and st.account.agent == "codex":
             # Codex (0.164) sends nothing until the first prompt, not even SessionStart, so
-            # silence is normal; it only needs you if derot's hooks aren't approved yet
-            from .installer import CODEX_UNAPPROVED
-            if (st.host.name, st.account.config_dir) in CODEX_UNAPPROVED \
-                    and hp.age.get(key, 0) > NO_STATUS_SECS:
-                st.state, st.message = "waiting", NO_STATUS_CODEX
+            # silence is normal; it only needs you if it isn't logged in, or derot's hooks
+            # aren't approved yet (both found by the check before each start)
+            from .installer import CODEX_NO_LOGIN, CODEX_UNAPPROVED
+            where = (st.host.name, st.account.config_dir)
+            if hp.age.get(key, 0) > NO_STATUS_SECS:
+                if where in CODEX_NO_LOGIN and "OPENAI_API_KEY" not in st.account.env:
+                    st.state = "waiting"
+                    st.message = NO_LOGIN_CODEX.format(account=st.account.name)
+                elif where in CODEX_UNAPPROVED:
+                    st.state, st.message = "waiting", NO_STATUS_CODEX
         elif not data and hp.age.get(key, 0) > NO_STATUS_SECS:
             # start deletes the state file and SessionStart writes it straight away, unless
             # Claude is stuck before the session starts: "trust this folder?", a new
@@ -320,7 +327,8 @@ def inner_script(cfg: Config, s: SessionDef, cont: bool, resume: str = "",
                  resume_file: str = "") -> str:
     host, account = cfg.host_of(s), cfg.account_of(s)
     if account.agent == "codex":
-        return _script(s, account, _codex_cmd(host, s, cont, resume, resume_file), "codex")
+        return _script(s, account, _codex_cmd(host, s, cont, resume, resume_file), "codex",
+                       _codex_key_login(host))
     base = " ".join(p for p in [_cmd(host.claude), s.args.strip()] if p)
     if resume and resume_file:
         # the session's own last conversation, if anything was said in it (Claude only
@@ -349,11 +357,21 @@ def _codex_cmd(host: Host, s: SessionDef, cont: bool, resume: str, resume_file: 
     return f"{again} --last" if cont else fresh
 
 
-def _script(s: SessionDef, account: Account, command: str, what: str) -> str:
+def _codex_key_login(host: Host) -> str:
+    """Codex ignores OPENAI_API_KEY in the environment (0.164 shows its sign-in screen), so
+    an account's key is handed to `codex login --with-api-key` through a pipe, never on a
+    command line."""
+    return ('if [ -n "${OPENAI_API_KEY:-}" ]; then printenv OPENAI_API_KEY | '
+            f'{_cmd(host.codex)} login --with-api-key >/dev/null 2>&1; fi')
+
+
+def _script(s: SessionDef, account: Account, command: str, what: str,
+            before: str = "") -> str:
     missing = shlex.quote(f"[derot] folder not found: {s.dir}")
     lines = [f"export DEROT_SESSION={s.name}", *env_lines(account, s.name)]
     lines += [
         f"cd {remote.qpath(s.dir)} || {{ echo {missing}; read _; exit 1; }}",
+        *([before] if before else []),
         f"{command}; code=$?",
         'if [ "$code" -ne 0 ]; then '
         f'echo "[derot] {what} exited with code $code. Press Enter to close."; read _; fi',
@@ -513,7 +531,11 @@ def login(cfg: Config, account_name: str, host_name: str = "local") -> int:
     if host_name not in cfg.hosts:
         raise SessionError(f"unknown host '{host_name}'")
     host, account = cfg.hosts[host_name], cfg.accounts[account_name]
-    command = _cmd(host.codex) + " login" if account.agent == "codex" else _cmd(host.claude)
+    if account.agent == "codex":
+        # the browser sign-in calls back to localhost, which can't work over SSH
+        command = _cmd(host.codex) + (" login" if host.is_local else " login --device-auth")
+    else:
+        command = _cmd(host.claude)
     inner = "\n".join([*env_lines(account, "_login"), 'cd "$HOME"', command])
     proc = remote.sh(host, write_env_script("_login") + " && "
                      + write_run_script("_login", inner), input=env_content(account))

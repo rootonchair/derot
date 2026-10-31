@@ -195,7 +195,11 @@ if answer == "yes" and events:
     snake = lambda e: re.sub(r"(?<!^)(?=[A-Z])", "_", e).lower()
     approved = all(re.search(r'\[hooks\.state\."%s:%s:' % (re.escape(p), snake(e)), toml)
                    for e in events)
-    answer = "yes" if approved else "yes, not approved"
+    # logged in: auth.json, unless logins are kept in the keychain (then don't guess)
+    logged_in = os.path.exists(os.path.join(os.path.dirname(p), "auth.json")) \
+        or "cli_auth_credentials_store" in toml
+    answer = "yes" + ("" if approved else ", not approved") \
+        + ("" if logged_in else ", not logged in")
 print(answer)
 """
 
@@ -207,6 +211,7 @@ def hook_hash() -> str:
 # (host, Codex folder) pairs whose hooks are installed but not approved in /hooks yet, from
 # the last check; the poll uses it to tell "waiting for approval" from "no prompt yet"
 CODEX_UNAPPROVED: Set[Tuple[str, str]] = set()
+CODEX_NO_LOGIN: Set[Tuple[str, str]] = set()  # ... and folders with no Codex login
 
 
 def hooks_present(host: Host, config_dir: str, agent: str = "claude") -> bool:
@@ -220,11 +225,9 @@ def hooks_present(host: Host, config_dir: str, agent: str = "claude") -> bool:
         log.warning("couldn't check hooks on %s: %s", host.name, remote.full_error(proc))
         return True
     answer = remote.last_line(proc.stdout)
-    if agent == "codex":
-        if answer == "yes, not approved":
-            CODEX_UNAPPROVED.add((host.name, config_dir))
-        else:
-            CODEX_UNAPPROVED.discard((host.name, config_dir))
+    if agent == "codex" and answer.startswith("yes"):
+        for flag, known in (("not approved", CODEX_UNAPPROVED), ("not logged in", CODEX_NO_LOGIN)):
+            (known.add if flag in answer else known.discard)((host.name, config_dir))
     if not answer.startswith("yes"):
         log.info("hooks for %s on %s: %s", config_dir, host.name, answer or "no answer")
     return answer.startswith("yes")

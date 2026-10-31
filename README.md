@@ -193,6 +193,10 @@ the status hook itself go to `~/.derot/hook-errors.log` on that machine.
   `/hooks`, and trust derot's hooks (`t`). It's once per account folder. A Codex session that
   has started but hasn't had a prompt yet shows idle: Codex reports nothing before the first
   prompt.
+- **Codex session shows "needs you: Codex isn't logged in"**: a new Codex account folder
+  has no login yet. Press `l` (on an SSH machine it signs in with a one-time code), or press
+  Enter and answer Codex's sign-in screen. An account with `OPENAI_API_KEY` in its `env` logs
+  in with that key when a session starts (Codex ignores the variable on its own).
 - **Session stuck on idle**: status hooks are missing for that account/host. Starting a
   session sets them up; otherwise press `u` (or run `derot setup`).
 - **Two accounts log each other out on the Mac**: Claude Code stores logins in the macOS

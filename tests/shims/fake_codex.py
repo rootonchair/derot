@@ -102,7 +102,12 @@ def message(role, text):
 
 def main():
     if args[:1] == ["login"]:
-        print("[fake-codex] logged in", flush=True)
+        if "--with-api-key" in args:  # like Codex: stores the key from stdin in auth.json
+            os.makedirs(home, exist_ok=True)
+            with open(os.path.join(home, "auth.json"), "w") as f:
+                json.dump({"OPENAI_API_KEY": sys.stdin.read().strip()}, f)
+        print("[fake-codex] logged in" + (" (device code)" if "--device-auth" in args else ""),
+              flush=True)
         return
     with open(os.path.join(home, "fake-codex-runs.log"), "a") as f:
         f.write(json.dumps({"args": args, "cwd": os.getcwd(),
