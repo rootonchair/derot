@@ -201,12 +201,13 @@ def resolve(cfg: Config, s: SessionDef, hp: HostPoll) -> Status:
     except (TypeError, ValueError):
         st.ts = 0.0
     last = data.get("state")
-    if s.name not in hp.tmux:
+    key = tmux_name(s.name)[3:]  # how the poll lists it
+    if key not in hp.tmux:
         st.state = "stopped"
         if last in ("done", "stopped"):
             st.message = str(data.get("message") or "")
         return st
-    st.attached = hp.tmux[s.name]
+    st.attached = hp.tmux[key]
     if data and last in STYLE and last not in ("stopped", "offline"):
         st.state = str(last)
         st.message = str(data.get("message") or "")
@@ -214,7 +215,7 @@ def resolve(cfg: Config, s: SessionDef, hp: HostPoll) -> Status:
         st.state = "idle"
         if not hp.hook:
             st.message = HOOK_MISSING
-        elif not data and hp.age.get(s.name, 0) > NO_STATUS_SECS:
+        elif not data and hp.age.get(key, 0) > NO_STATUS_SECS:
             # start deletes the state file and SessionStart writes it straight away, unless
             # Claude is stuck before the session starts: "trust this folder?", a new
             # account's login / first-run screens (seen on 2.1.316; no hook fires for them)
@@ -253,10 +254,17 @@ def _cmd(word: str) -> str:
     return word if any(c.isspace() for c in word) else remote.qpath(word)
 
 
+def tmux_name(name: str) -> str:
+    """tmux session name for a session: `cc-<name>`, with `.` written as `_` (older tmux,
+    e.g. 3.4 on Ubuntu 24.04, silently renames `a.b` to `a_b`; config rejects names that
+    would clash this way)."""
+    return "cc-" + name.replace(".", "_")
+
+
 def target(name: str) -> str:
     """Exact tmux target for a session. `=` stops prefix matching (stop `api` must never
-    hit `api-v2`); the trailing `:` stops a `.` in the name being read as a pane."""
-    return f"=cc-{name}:"
+    hit `api-v2`); the trailing `:` stops anything after it being read as a window."""
+    return f"={tmux_name(name)}:"
 
 
 def env_file(key: str) -> str:
@@ -356,7 +364,7 @@ def start_script(cfg: Config, s: SessionDef, cont: bool = False, resume: str = "
         "set-option", "-g", "history-limit", "50000", ";",
         # panes start under /bin/sh whatever the login shell is (see launch_cmd)
         "set-option", "-g", "default-shell", "/bin/sh", ";",
-        "new-session", "-d", "-s", f"cc-{s.name}", "-x", "220", "-y", "60",
+        "new-session", "-d", "-s", tmux_name(s.name), "-x", "220", "-y", "60",
         pane_cmd(cfg, s, cont),
     ]
     left = _fmt(f" derot · {s.name} · {s.account}@{host.name} ")
@@ -377,7 +385,7 @@ def start_script(cfg: Config, s: SessionDef, cont: bool = False, resume: str = "
     fail = f"{{ rc=$?; rm -f {env_file(s.name)}; exit $rc; }}"
     return "\n".join([
         # check first: never touch the state of a session that is already running
-        f"if {has} 2>/dev/null; then echo 'duplicate session: cc-{s.name}' >&2; exit 1; fi",
+        f"if {has} 2>/dev/null; then echo 'duplicate session: {tmux_name(s.name)}' >&2; exit 1; fi",
         f"[ -d {remote.qpath(s.dir)} ] || {{ echo {shlex.quote('folder not found: ' + s.dir)}"
         f" >&2; exit 1; }}",
         write_env_script(s.name) + " || " + fail,

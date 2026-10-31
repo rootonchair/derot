@@ -9,6 +9,8 @@ from pathlib import Path
 
 import pytest
 
+from derot import sessions
+
 SHIMS = Path(__file__).parent / "shims"
 
 
@@ -48,13 +50,14 @@ class Env:
                               env=self.host_env(host))
 
     def send(self, name, text, host="local"):
-        args = ["send-keys", "-t", f"cc-{name}"]
+        args = ["send-keys", "-t", sessions.tmux_name(name)]
         if text:
             args.append(text)
         self.tmux(*args, "Enter", host=host)
 
     def pane(self, name, host="local") -> str:
-        return self.tmux("capture-pane", "-p", "-t", f"cc-{name}", host=host).stdout
+        return self.tmux("capture-pane", "-p", "-t", sessions.tmux_name(name),
+                         host=host).stdout
 
     def write_config(self, text: str):
         self.config.parent.mkdir(parents=True, exist_ok=True)

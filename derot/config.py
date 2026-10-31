@@ -186,6 +186,7 @@ def parse(data, path: Optional[Path] = None) -> Config:
         raise ConfigError("sessions: expected a list")
     sessions: List[SessionDef] = []
     names = set()
+    tmux_keys: Dict[str, str] = {}
     for i, s in enumerate(raw_sessions):
         s = _mapping(s, f"session #{i + 1}")
         name = _str(s.get("name"), f"session #{i + 1} name")
@@ -194,7 +195,12 @@ def parse(data, path: Optional[Path] = None) -> Config:
             raise ConfigError(f"{label}: invalid name (use letters, digits, _ . -; not starting with .)")
         if name in names:
             raise ConfigError(f"{label}: duplicate session name")
+        clash = tmux_keys.get(name.replace(".", "_"))
+        if clash:  # tmux names write `.` as `_`
+            raise ConfigError(f"{label}: too similar to session '{clash}' (. and _ count "
+                              "as the same in tmux session names)")
         names.add(name)
+        tmux_keys[name.replace(".", "_")] = name
         host = _str(s.get("host"), f"{label} host", "local") or "local"
         if host not in hosts:
             raise ConfigError(f"{label}: unknown host '{host}'")

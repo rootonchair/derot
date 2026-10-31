@@ -62,6 +62,9 @@ def test_002_dotted_names_work(env, ready, capsys):
     assert cli.main(["start", "next.js-site", "-d"]) == 0
     wait_for(lambda: by_name(cfg)["next.js-site"].state == "idle", what="idle")
     assert env.tmux("has-session", "-t", sessions.target("next.js-site")).returncode == 0
+    # the same tmux name on every tmux version (3.4 renames dots, 3.8 doesn't)
+    listed = env.tmux("list-sessions", "-F", "#{session_name}").stdout.split()
+    assert listed == ["cc-next_js-site"]
     assert cli.main(["stop", "next.js-site"]) == 0
     assert not by_name(cfg)["next.js-site"].running
 
@@ -322,6 +325,9 @@ def test_027_names_cannot_start_with_dot():
     with pytest.raises(config.ConfigError):
         config.parse({"sessions": [{"name": ".hidden", "dir": "/x"}]})
     assert config.parse({"sessions": [{"name": "next.js", "dir": "/x"}]}).sessions
+    with pytest.raises(config.ConfigError, match="too similar to session 'next.js'"):
+        config.parse({"sessions": [{"name": "next.js", "dir": "/x"},
+                                   {"name": "next_js", "dir": "/y"}]})
 
 
 @needs_tmux
