@@ -3,10 +3,10 @@
 [![tests](https://github.com/rootonchair/derot/actions/workflows/tests.yml/badge.svg)](https://github.com/rootonchair/derot/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**Stop Claude Code sessions rotting in forgotten terminals.** derot is one terminal console
-for every Claude Code session you run: across **projects**, **Claude accounts** and
+**Stop coding-agent sessions rotting in forgotten terminals.** derot is one terminal console
+for every **Claude Code** and **Codex** session you run: across **projects**, **accounts** and
 **machines** (this computer plus any machine you can SSH into), in one list.
-See which sessions need you, watch Claude work, and type into any of them without leaving
+See which sessions need you, watch the agent work, and type into any of them without leaving
 the console.
 
 ![derot: a session needs approval, its live screen on the right](docs/screenshots/overview.svg)
@@ -43,6 +43,9 @@ and the SSH target field lists hosts from your `~/.ssh/config` and `known_hosts`
 
 ![add machine form with SSH targets](docs/screenshots/add-machine.svg)
 
+**Claude Code and Codex side by side.** Each account belongs to an agent, so Claude Code
+and OpenAI Codex sessions share one list, with the same status, preview, typing and resume.
+
 **Sessions outlive the console.** Every session runs in tmux, so it keeps going when you
 quit derot, close the laptop lid or lose the SSH connection.
 
@@ -56,13 +59,15 @@ quit derot, close the laptop lid or lose the SSH connection.
   registers it as a Claude Code hook. It writes `~/.derot/state/<name>.json` on each event
   (prompt submitted, tool use, permission prompt, stop), so status is accurate without screen
   scraping.
-- **Accounts**: each account is a Claude Code config folder passed via `CLAUDE_CONFIG_DIR`,
-  each with its own login and settings.
+- **Accounts**: each account is an agent's config folder, with its own login and settings:
+  a Claude Code folder passed via `CLAUDE_CONFIG_DIR`, or a Codex folder passed via
+  `CODEX_HOME`. For Codex, setup registers the same hook in that folder's `hooks.json`.
 
 ## Install
 
-Requirements: Python 3.9+, [tmux](https://github.com/tmux/tmux) and
-[Claude Code](https://docs.anthropic.com/en/docs/claude-code) on every machine you use.
+Requirements: Python 3.9+, [tmux](https://github.com/tmux/tmux), and
+[Claude Code](https://docs.anthropic.com/en/docs/claude-code) and/or
+[Codex](https://developers.openai.com/codex) on every machine you use.
 Developed and used on macOS; the Linux code paths (tmux, `notify-send` notifications) are
 covered by CI but haven't seen much real use yet.
 
@@ -70,8 +75,9 @@ covered by CI but haven't seen much real use yet.
 pipx install git+https://github.com/rootonchair/derot     # or: uv tool install git+https://github.com/rootonchair/derot
 ```
 
-On macOS, `brew install tmux pipx` first. Each SSH machine needs `tmux`, `python3`, Claude
-Code, and key-based SSH access (`ssh my-vm true` works without a password prompt).
+On macOS, `brew install tmux pipx` first. Each SSH machine needs `tmux`, `python3`, the
+agent(s) you use there, and key-based SSH access (`ssh my-vm true` works without a password
+prompt).
 
 ## Setup
 
@@ -100,8 +106,10 @@ hosts:
   vm:
     ssh: user@my-vm            # anything `ssh` accepts, incl. ~/.ssh/config aliases
     claude: claude             # optional: command/full path for Claude Code there
+    codex: codex               # optional: command/full path for Codex there
 accounts:
   personal: {config_dir: ~/.claude}
+  openai: {agent: codex, config_dir: ~/.codex}   # agent: claude (default) or codex
   work:
     config_dir: ~/.claude-work
     env: {ANTHROPIC_API_KEY: sk-ant-...}   # optional
@@ -180,6 +188,9 @@ the status hook itself go to `~/.derot/hook-errors.log` on that machine.
 - **Session shows "needs you: Claude hasn't started yet"**: Claude is on a screen that comes
   before the session, such as "trust this folder?" or a new account's login. Press Enter (or
   click the right panel) and answer it. If nothing is there, press `u` to reinstall the hooks.
+- **Codex session shows "needs you: Codex isn't reporting yet"**: Codex only runs hooks
+  you've approved. Press Enter on the session (or click the right panel), type `/hooks`, and
+  approve derot's hooks. Codex asks again after derot updates its hook.
 - **Session stuck on idle**: status hooks are missing for that account/host. Starting a
   session sets them up; otherwise press `u` (or run `derot setup`).
 - **Two accounts log each other out on the Mac**: Claude Code stores logins in the macOS
@@ -218,4 +229,5 @@ Releases are published to PyPI from GitHub Actions; see [RELEASING.md](RELEASING
 [MIT](LICENSE).
 
 derot is an independent project. It is not affiliated with, endorsed by or sponsored by
-Anthropic. Claude and Claude Code are trademarks of Anthropic.
+Anthropic or OpenAI. Claude and Claude Code are trademarks of Anthropic; Codex and OpenAI are
+trademarks of OpenAI.

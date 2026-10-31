@@ -5,12 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "derot"
 dynamic = ["version"]
-description = "One terminal console for every Claude Code session across projects, accounts and machines"
+description = "One terminal console for every Claude Code and Codex session across projects, accounts and machines"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [{name = "rootonchair"}]
 requires-python = ">=3.9"
-keywords = ["claude", "claude-code", "tmux", "tui", "terminal", "ssh"]
+keywords = ["claude", "claude-code", "codex", "tmux", "tui", "terminal", "ssh"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console :: Curses",

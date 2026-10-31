@@ -4,6 +4,10 @@
 
 First public version.
 
+- Codex support: accounts with `agent: codex` run OpenAI Codex (`CODEX_HOME`) next to Claude
+  Code, with status from Codex hooks (`hooks.json`, approved once in `/hooks`), the resume
+  picker and `c` (`codex resume`), the conversation view and `codex login`.
+
 - One console for Claude Code sessions across projects, accounts (`CLAUDE_CONFIG_DIR`)
   and machines (this computer or any SSH host), each in its own tmux session.
 - Live status from Claude Code hooks: needs you, done, working, idle, stopped, offline.

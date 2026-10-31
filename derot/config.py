@@ -15,6 +15,13 @@ from .log import log
 NAME_RE = re.compile(r"^[A-Za-z0-9_-][A-Za-z0-9_.-]*$")
 DEFAULT_CONFIG_DIR = "~/.claude"
 
+# The coding agents derot can run. Each account belongs to one: its folder is that agent's
+# config folder (CLAUDE_CONFIG_DIR / CODEX_HOME).
+AGENTS = {
+    "claude": {"label": "Claude Code", "dir": "~/.claude", "env": "CLAUDE_CONFIG_DIR"},
+    "codex": {"label": "Codex", "dir": "~/.codex", "env": "CODEX_HOME"},
+}
+
 
 class ConfigError(Exception):
     """A one-line, user-facing configuration problem."""
@@ -25,6 +32,11 @@ class Host:
     name: str
     ssh: Optional[str] = None
     claude: str = "claude"
+    codex: str = "codex"
+
+    def command(self, agent: str) -> str:
+        """The command (or full path) for an agent on this machine."""
+        return self.codex if agent == "codex" else self.claude
 
     @property
     def is_local(self) -> bool:
@@ -40,14 +52,28 @@ class Account:
     name: str
     config_dir: str = DEFAULT_CONFIG_DIR
     env: Dict[str, str] = field(default_factory=dict)
+    agent: str = "claude"
+
+    @property
+    def default_dir(self) -> str:
+        return AGENTS[self.agent]["dir"]
+
+    @property
+    def dir_env(self) -> str:
+        """The variable that points the agent at this account's folder."""
+        return AGENTS[self.agent]["env"]
+
+    @property
+    def agent_label(self) -> str:
+        return AGENTS[self.agent]["label"]
 
     @property
     def is_default_dir(self) -> bool:
-        """True for Claude Code's default folder, however it is written (on this machine)."""
+        """True for the agent's default folder, however it is written (on this machine)."""
         d = self.config_dir.rstrip("/")
-        if d == "~/.claude":
+        if d == self.default_dir:
             return True
-        return os.path.expanduser(d) == os.path.expanduser("~/.claude")
+        return os.path.expanduser(d) == os.path.expanduser(self.default_dir)
 
 
 @dataclass
@@ -160,24 +186,30 @@ def parse(data, path: Optional[Path] = None) -> Config:
         name = str(name)
         h = _mapping(h, f"host '{name}'")
         claude = _str(h.get("claude"), f"host '{name}' claude", "claude") or "claude"
+        codex = _str(h.get("codex"), f"host '{name}' codex", "codex") or "codex"
         if name == "local":
-            hosts["local"] = Host("local", None, claude)
+            hosts["local"] = Host("local", None, claude, codex)
             continue
         ssh = _str(h.get("ssh"), f"host '{name}' ssh")
         if not ssh:
             raise ConfigError(f"host '{name}': missing 'ssh' (e.g. ssh: user@my-vm)")
-        hosts[name] = Host(name, ssh, claude)
+        hosts[name] = Host(name, ssh, claude, codex)
 
     accounts: Dict[str, Account] = {}
     for name, a in _mapping(data.get("accounts"), "accounts").items():
         name = str(name)
         a = _mapping(a, f"account '{name}'")
-        cdir = _str(a.get("config_dir"), f"account '{name}' config_dir", DEFAULT_CONFIG_DIR)
+        agent = _str(a.get("agent"), f"account '{name}' agent", "claude") or "claude"
+        if agent not in AGENTS:
+            raise ConfigError(f"account '{name}': unknown agent '{agent}' (use "
+                              + " or ".join(AGENTS) + ")")
+        default = AGENTS[agent]["dir"]
+        cdir = _str(a.get("config_dir"), f"account '{name}' config_dir", default)
         env = {
             str(k): _str(v, f"account '{name}' env {k}")
             for k, v in _mapping(a.get("env"), f"account '{name}' env").items()
         }
-        accounts[name] = Account(name, norm_path(cdir or DEFAULT_CONFIG_DIR), env)
+        accounts[name] = Account(name, norm_path(cdir or default), env, agent)
     if not accounts:
         accounts["default"] = Account("default", DEFAULT_CONFIG_DIR)
 
@@ -254,11 +286,15 @@ def to_dict(cfg: Config) -> dict:
             entry["ssh"] = h.ssh
         if h.claude != "claude":
             entry["claude"] = h.claude
+        if h.codex != "codex":
+            entry["codex"] = h.codex
         if entry or not h.is_local:
             hosts[h.name] = entry
     accounts: dict = {}
     for a in cfg.accounts.values():
         entry = {"config_dir": a.config_dir}
+        if a.agent != "claude":
+            entry = {"agent": a.agent, **entry}
         if a.env:
             entry["env"] = dict(a.env)
         accounts[a.name] = entry

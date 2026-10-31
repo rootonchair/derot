@@ -435,7 +435,7 @@ def test_046_cut_off_hook_is_repaired_before_start(env):
     src = hook_py.read_text()
     hook_py.write_text(src[: len(src) // 2])
     assert not installer.hooks_present(cfg.hosts["local"], "~/.claude")
-    assert installer.ensure_hooks(cfg, cfg.hosts["local"], "~/.claude")
+    assert installer.ensure_hooks(cfg, cfg.hosts["local"], cfg.accounts["default"])
     assert hook_py.read_text() == src
     sessions.start(cfg, "p")
     wait_for((env.home / ".derot" / "state" / "p.json").exists, what="a status")

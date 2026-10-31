@@ -62,6 +62,7 @@ and this table together. Line numbers refer to the code as of 2026-10-29.
 | 054 | [One-time backups can be left cut off forever (suspected)](054-one-time-backups-not-atomic/README.md) | bug | P3 | S | open |
 | 055 | [Enter right after typed text didn't submit in real Claude](055-enter-swallowed-after-text/README.md) | bug | P1 | S | done |
 | 056 | [Trust / login / first-run screens showed as "idle"](056-pre-start-dialogs-show-idle/README.md) | bug | P2 | S | done |
+| 057 | [Codex support](057-codex-support/README.md) | feature | P1 | M | in progress |
 
 ## Suggested order
 

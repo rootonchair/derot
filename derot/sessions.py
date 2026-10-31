@@ -82,7 +82,10 @@ if isinstance(d, dict) and d.get("state") == "waiting" \
 
 HOOK_MISSING = "status hooks not installed: run `derot setup`"
 NO_STATUS = ("Claude hasn't started yet, probably a login, trust or first-run screen "
-             "(i or click to answer it; if nothing's there, press u)")
+             "(Enter or click to answer it; if nothing's there, press u)")
+# Codex skips hooks nobody has approved yet, so that's the likeliest reason for silence
+NO_STATUS_CODEX = ("Codex isn't reporting yet, probably derot's hooks waiting for approval "
+                   "in /hooks, or a login or trust screen (Enter or click to answer it)")
 NO_STATUS_SECS = 15
 
 _online: Dict[str, bool] = {}  # last known reachability per host, to log only changes
@@ -219,7 +222,8 @@ def resolve(cfg: Config, s: SessionDef, hp: HostPoll) -> Status:
             # start deletes the state file and SessionStart writes it straight away, unless
             # Claude is stuck before the session starts: "trust this folder?", a new
             # account's login / first-run screens (seen on 2.1.316; no hook fires for them)
-            st.state, st.message = "waiting", NO_STATUS
+            st.state = "waiting"
+            st.message = NO_STATUS_CODEX if st.account.agent == "codex" else NO_STATUS
     return st
 
 
@@ -292,12 +296,14 @@ def key_label(key: str) -> str:
 
 def env_lines(account: Account, key: str) -> List[str]:
     """Pane setup for an account. The default-folder test runs on the host, so `~/.claude`,
-    `$HOME/.claude` and an absolute path to it all keep Claude Code's normal login."""
+    `$HOME/.claude` and an absolute path to it all keep the agent's normal login (same for
+    Codex's `~/.codex` and CODEX_HOME)."""
+    default, var = account.default_dir[2:], account.dir_env  # ".claude" / ".codex"
     return [
         "unset CLAUDECODE",
         f"derot_dir={remote.qpath(account.config_dir)}",
-        'if [ "${derot_dir%/}" = "$HOME/.claude" ]; then unset CLAUDE_CONFIG_DIR; '
-        'else export CLAUDE_CONFIG_DIR="$derot_dir"; fi; unset derot_dir',
+        f'if [ "${{derot_dir%/}}" = "$HOME/{default}" ]; then unset {var}; '
+        f'else export {var}="$derot_dir"; fi; unset derot_dir',
         # read once, then delete: the secrets live only in the session's processes, not
         # on the host's disk after the session is stopped or removed
         f"if [ -f {env_file(key)} ]; then . {env_file(key)}; rm -f {env_file(key)}; fi",
@@ -307,6 +313,8 @@ def env_lines(account: Account, key: str) -> List[str]:
 def inner_script(cfg: Config, s: SessionDef, cont: bool, resume: str = "",
                  resume_file: str = "") -> str:
     host, account = cfg.host_of(s), cfg.account_of(s)
+    if account.agent == "codex":
+        return _script(s, account, _codex_cmd(host, s, cont, resume, resume_file), "codex")
     base = " ".join(p for p in [_cmd(host.claude), s.args.strip()] if p)
     if resume and resume_file:
         # the session's own last conversation, if anything was said in it (Claude only
@@ -317,13 +325,32 @@ def inner_script(cfg: Config, s: SessionDef, cont: bool, resume: str = "",
         claude = f"{base} --resume {shlex.quote(resume)}"
     else:
         claude = f"{base} --continue" if cont else base
+    return _script(s, account, claude, "claude")
+
+
+def _codex_cmd(host: Host, s: SessionDef, cont: bool, resume: str, resume_file: str) -> str:
+    """codex / codex resume ID / codex resume --last; the session's flags go after
+    `resume`, which takes the same options."""
+    base = _cmd(host.codex)
+    args = s.args.strip()
+    fresh = " ".join(p for p in [base, args] if p)
+    again = " ".join(p for p in [base, "resume", args] if p)
+    if resume and resume_file:
+        return (f"if [ -f {remote.qpath(resume_file)} ]; then {again} "
+                f"{shlex.quote(resume)}; else {again} --last; fi")
+    if resume:
+        return f"{again} {shlex.quote(resume)}"
+    return f"{again} --last" if cont else fresh
+
+
+def _script(s: SessionDef, account: Account, command: str, what: str) -> str:
     missing = shlex.quote(f"[derot] folder not found: {s.dir}")
     lines = [f"export DEROT_SESSION={s.name}", *env_lines(account, s.name)]
     lines += [
         f"cd {remote.qpath(s.dir)} || {{ echo {missing}; read _; exit 1; }}",
-        f"{claude}; code=$?",
+        f"{command}; code=$?",
         'if [ "$code" -ne 0 ]; then '
-        'echo "[derot] claude exited with code $code. Press Enter to close."; read _; fi',
+        f'echo "[derot] {what} exited with code $code. Press Enter to close."; read _; fi',
     ]
     return "\n".join(lines)
 
@@ -480,7 +507,8 @@ def login(cfg: Config, account_name: str, host_name: str = "local") -> int:
     if host_name not in cfg.hosts:
         raise SessionError(f"unknown host '{host_name}'")
     host, account = cfg.hosts[host_name], cfg.accounts[account_name]
-    inner = "\n".join([*env_lines(account, "_login"), 'cd "$HOME"', _cmd(host.claude)])
+    command = _cmd(host.codex) + " login" if account.agent == "codex" else _cmd(host.claude)
+    inner = "\n".join([*env_lines(account, "_login"), 'cd "$HOME"', command])
     proc = remote.sh(host, write_env_script("_login") + " && "
                      + write_run_script("_login", inner), input=env_content(account))
     if proc.returncode != 0:
@@ -571,6 +599,72 @@ print(json.dumps(out))
 """
 
 
+# Codex: <CODEX_HOME>/sessions/YYYY/MM/DD/rollout-<time>-<id>.jsonl, the folder in the
+# first line's session_meta.cwd, titles in session_index.jsonl (id, thread_name).
+CODEX_CONVERSATIONS_SCRIPT = r"""
+import glob, json, os, sys
+cdir, folder, limit = os.path.expanduser(sys.argv[1]), os.path.expanduser(sys.argv[2]), int(sys.argv[3])
+roots = {os.path.realpath(folder), os.path.abspath(folder)}
+titles = {}
+try:
+    with open(os.path.join(cdir, "session_index.jsonl"), errors="replace") as fh:
+        for line in fh:
+            try:
+                e = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(e, dict) and e.get("id") and e.get("thread_name"):
+                titles[str(e["id"])] = str(e["thread_name"])
+except OSError:
+    pass
+
+def user_texts(lines):
+    for line in lines:
+        if b'"user"' not in line:
+            continue
+        try:
+            e = json.loads(line.decode("utf-8", "replace"))
+        except ValueError:
+            continue
+        p = e.get("payload") if isinstance(e, dict) else None
+        if not isinstance(p, dict) or p.get("type") != "message" or p.get("role") != "user":
+            continue
+        for b in p.get("content") or []:
+            t = (b.get("text") if isinstance(b, dict) else "") or ""
+            if t.strip() and not t.lstrip().startswith(("<", "# AGENTS.md")):
+                yield t.strip()
+
+files = glob.glob(os.path.join(cdir, "sessions", "*", "*", "*", "rollout-*.jsonl"))
+files = sorted(files, key=lambda p: -os.path.getmtime(p))[:3000]
+out = []
+for path in files:
+    if len(out) >= limit:
+        break
+    try:
+        with open(path, "rb") as fh:
+            meta = json.loads(fh.readline().decode("utf-8", "replace"))
+            payload = meta.get("payload") or {}
+            cwd = payload.get("cwd") or ""
+            if not cwd or os.path.realpath(cwd) not in roots:
+                continue
+            head = fh.read(1 << 20)
+            fh.seek(0, os.SEEK_END)
+            size = fh.tell()
+            fh.seek(max(0, size - (256 << 10)))
+            tail = fh.read()
+    except Exception:
+        continue
+    first = next(user_texts(head.splitlines()), "")
+    if not first:
+        continue  # nothing was said: not worth resuming
+    lasts = list(user_texts(tail.splitlines()))
+    conv = str(payload.get("id") or os.path.basename(path)[-41:-6])
+    out.append({"id": conv, "mtime": os.path.getmtime(path), "title": titles.get(conv, ""),
+                "first": first, "last": lasts[-1] if lasts else first})
+print(json.dumps(out))
+"""
+
+
 @dataclass
 class Conversation:
     id: str
@@ -583,8 +677,10 @@ class Conversation:
 def conversations(cfg: Config, name: str, limit: int = 40) -> List[Conversation]:
     """Past conversations in the session's folder for its account, newest first."""
     s = cfg.session(name)
-    proc = remote.python(cfg.host_of(s), CONVERSATIONS_SCRIPT,
-                         cfg.account_of(s).config_dir, s.dir, str(limit), timeout=30)
+    account = cfg.account_of(s)
+    script = CODEX_CONVERSATIONS_SCRIPT if account.agent == "codex" else CONVERSATIONS_SCRIPT
+    proc = remote.python(cfg.host_of(s), script, account.config_dir, s.dir, str(limit),
+                         timeout=30)
     if proc.returncode != 0:
         log.error("couldn't list conversations of %s: %s", name, remote.full_error(proc))
         raise SessionError(f"couldn't list conversations of `{name}`: {remote.error_text(proc)}")
@@ -667,6 +763,28 @@ for raw in data.splitlines():
                 add("claude", b.get("text"))
             elif b.get("type") == "tool_use":
                 add("tool", summary(b.get("name") or "tool", b.get("input")))
+    elif kind == "response_item" and isinstance(e.get("payload"), dict):  # Codex rollout
+        p = e["payload"]
+        if p.get("type") == "message" and p.get("role") in ("user", "assistant"):
+            for b in p.get("content") or []:
+                t = b.get("text") if isinstance(b, dict) else None
+                if not t:
+                    continue
+                if p["role"] == "assistant":
+                    add("claude", t)
+                elif not t.lstrip().startswith(("<", "# AGENTS.md")):  # injected context
+                    add("you", t)
+        elif p.get("type") in ("function_call", "custom_tool_call", "local_shell_call"):
+            args = p.get("arguments") or p.get("input") or p.get("action")
+            if isinstance(args, str):
+                try:
+                    args = json.loads(args)
+                except ValueError:
+                    args = {"command": args}
+            add("tool", summary(p.get("name") or "tool", args))
+    elif kind == "event_msg" and isinstance(e.get("payload"), dict) \
+            and e["payload"].get("type") == "turn_aborted":
+        add("note", "interrupted")
 
 items = items[-limit:]
 for it in items:

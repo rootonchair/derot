@@ -109,6 +109,8 @@ def tool_summary(payload):
     inp = payload.get("tool_input")
     if isinstance(inp, dict):
         detail = inp.get("command") or inp.get("file_path") or inp.get("url") or inp.get("pattern")
+        if isinstance(detail, list):  # Codex can pass argv
+            detail = " ".join(str(a) for a in detail)
         if detail:
             return one_line("%s: %s" % (tool, detail), 160)
     return tool
@@ -192,6 +194,9 @@ def apply(state, event, payload):
         alert = True
         state["message"] = one_line("stopped with an error: %s" % (
             payload.get("error_details") or payload.get("error") or "unknown"), 300)
+    elif event == "Interrupt":  # Codex: you interrupted the turn (Esc)
+        state["state"] = "idle"
+        state["message"] = "interrupted"
     elif event == "SessionEnd":
         state["state"] = "stopped"
     else:

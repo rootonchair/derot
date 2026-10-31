@@ -92,7 +92,7 @@ def cmd_start(args) -> int:
     cfg.session(args.name)
     try:
         s = cfg.session(args.name)
-        if not installer.ensure_hooks(cfg, cfg.host_of(s), cfg.account_of(s).config_dir):
+        if not installer.ensure_hooks(cfg, cfg.host_of(s), cfg.account_of(s)):
             print(f"derot: status hooks for {s.account} on {s.host} couldn't be set up "
                   "(see `derot log`)", file=sys.stderr)
         sessions.start(cfg, args.name, cont=args.cont, resume=args.resume or "")

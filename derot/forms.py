@@ -22,8 +22,8 @@ from textual.widgets import Button, Input, Label, OptionList, Select, Static
 from textual.widgets.option_list import Option
 
 from . import remote, sessions
-from .config import (NAME_RE, Account, Config, ConfigError, Host, SessionDef, norm_path, parse,
-                     to_dict)
+from .config import (AGENTS, NAME_RE, Account, Config, ConfigError, Host, SessionDef,
+                     norm_path, parse, to_dict)
 from .log import log
 
 ADD_HOST = "\0add-host"
@@ -411,7 +411,9 @@ class SessionForm(Form):
         return opts + [("+ add a machine (SSH)…", ADD_HOST)]
 
     def _account_options(self):
-        opts = [(f"{a.name} — {a.config_dir}", a.name) for a in self.cfg.accounts.values()]
+        opts = [(f"{a.name} — {a.config_dir}"
+                 + (f" ({a.agent_label})" if a.agent != "claude" else ""), a.name)
+                for a in self.cfg.accounts.values()]
         return opts + [("+ add an account…", ADD_ACCOUNT)]
 
     def on_input_changed(self, event: Input.Changed) -> None:
@@ -514,8 +516,12 @@ class HostForm(Form):
         self.dismiss(Host(name, ssh, self.value("claude") or "claude"))
 
 
+API_KEY_VAR = {"claude": "ANTHROPIC_API_KEY", "codex": "OPENAI_API_KEY"}
+
+
 class AccountForm(Form):
-    """Add a Claude account (a config folder). Dismisses with an Account or None."""
+    """Add an account: an agent (Claude Code or Codex) and its config folder. Dismisses
+    with an Account or None."""
 
     def __init__(self, cfg: Config):
         super().__init__()
@@ -523,24 +529,52 @@ class AccountForm(Form):
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="form"):
-            yield Static("Add a Claude account", classes="title")
+            yield Static("Add an account", classes="title")
+            yield Label("Agent")
+            yield Select([(info["label"], agent) for agent, info in AGENTS.items()],
+                         allow_blank=False, value="claude", id="agent", compact=True)
             yield Label("Name")
             yield Input(compact=True, placeholder="work", id="name")
             yield Label("Config folder")
             yield Input(compact=True, placeholder="~/.claude-work", id="config_dir")
-            yield Static("Each account keeps its own login here. ~/.claude is the default "
-                         "one you already use.", classes="hint")
+            yield Static("", classes="hint", id="dir-hint")
             yield Label("API key (optional)")
-            yield Input(compact=True, placeholder="sk-ant-…  leave empty to log in with /login",
-                        password=True, id="api_key")
+            yield Input(compact=True, password=True, id="api_key")
             yield from self.buttons("Add account")
+
+    def on_mount(self) -> None:
+        self._agent_changed()
+
+    @property
+    def agent(self) -> str:
+        return str(self.query_one("#agent", Select).value)
+
+    def _agent_changed(self) -> None:
+        agent, info = self.agent, AGENTS[self.agent]
+        prefix = info["dir"]
+        self.query_one("#config_dir", Input).placeholder = f"{prefix}-work"
+        self.query_one("#dir-hint", Static).update(
+            f"Each account keeps its own login here. {prefix} is the default "
+            f"{info['label']} one you already use.")
+        login = "/login" if agent == "claude" else "codex login"
+        key = "sk-ant-…" if agent == "claude" else "sk-…"
+        self.query_one("#api_key", Input).placeholder = (
+            f"{key}  leave empty to log in with {login}")
+        self._fill_dir()
+
+    def _fill_dir(self) -> None:
+        cdir = self.query_one("#config_dir", Input)
+        if not cdir.has_focus:
+            n = slug(self.query_one("#name", Input).value)
+            cdir.value = f"{AGENTS[self.agent]['dir']}-{n}" if n else ""
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        if event.select.id == "agent":
+            self._agent_changed()
 
     def on_input_changed(self, event: Input.Changed) -> None:
         if event.input.id == "name":
-            cdir = self.query_one("#config_dir", Input)
-            if not cdir.has_focus:
-                n = slug(event.value)
-                cdir.value = f"~/.claude-{n}" if n else ""
+            self._fill_dir()
 
     def action_save(self) -> None:
         name = self.value("name")
@@ -548,9 +582,11 @@ class AccountForm(Form):
             return self.error("Name: use letters, digits, _ . -")
         if name in self.cfg.accounts:
             return self.error(f"There's already an account called {name}.")
-        cdir = self.value("config_dir") or f"~/.claude-{name}"
-        env = {"ANTHROPIC_API_KEY": self.value("api_key")} if self.value("api_key") else {}
-        self.dismiss(Account(name, cdir, env))
+        agent = self.agent
+        cdir = norm_path(self.value("config_dir")) or f"{AGENTS[agent]['dir']}-{name}"
+        key = self.value("api_key")
+        env = {API_KEY_VAR[agent]: key} if key else {}
+        self.dismiss(Account(name, cdir, env, agent))
 
 
 class Confirm(ModalScreen):

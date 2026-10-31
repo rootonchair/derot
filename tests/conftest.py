@@ -32,6 +32,7 @@ class Env:
         self.vms = root / "vms"
         self.bin = root / "bin"
         self.claude = self.bin / "claude"
+        self.codex = self.bin / "codex"
         self.config = self.home / ".config" / "derot" / "config.yaml"
 
     def vm_home(self, host="vm") -> Path:
@@ -76,10 +77,11 @@ def env(monkeypatch):
     for d in (e.home, e.vms, e.bin, root / "tmux"):
         d.mkdir(parents=True)
     shutil.copy(SHIMS / "ssh", e.bin / "ssh")
-    src = (SHIMS / "fake_claude.py").read_text().splitlines()
-    src[0] = f"#!{sys.executable}"
-    e.claude.write_text("\n".join(src) + "\n")
-    for f in (e.bin / "ssh", e.claude):
+    for shim, target in (("fake_claude.py", e.claude), ("fake_codex.py", e.codex)):
+        src = (SHIMS / shim).read_text().splitlines()
+        src[0] = f"#!{sys.executable}"
+        target.write_text("\n".join(src) + "\n")
+    for f in (e.bin / "ssh", e.claude, e.codex):
         f.chmod(0o755)
 
     monkeypatch.setenv("HOME", str(e.home))
@@ -90,6 +92,7 @@ def env(monkeypatch):
     monkeypatch.setenv("PATH", f"{e.bin}:{os.environ['PATH']}")
     monkeypatch.delenv("TMUX", raising=False)
     monkeypatch.delenv("CLAUDE_CONFIG_DIR", raising=False)
+    monkeypatch.delenv("CODEX_HOME", raising=False)
     yield e
     for host in ["local", *[p.name for p in e.vms.iterdir()]]:
         e.tmux("kill-server", host=host)

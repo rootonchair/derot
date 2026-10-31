@@ -40,12 +40,15 @@ def _clip(text: str, n: int) -> str:
     return text if len(text) <= n else text[: n - 1] + "…"
 
 
-def render_conversation(items: List[dict]) -> Text:
+def render_conversation(items: List[dict], agent: str = "claude") -> Text:
+    """The conversation view; the agent's replies are labelled with its name."""
     if not items:
         return Text("no conversation yet", style="dim")
     t = Text()
     for i, it in enumerate(items):
         label, style = ROLE_STYLE.get(it.get("role", ""), ("?", "dim"))
+        if it.get("role") == "claude":
+            label = agent
         if i:
             t.append("\n" if it.get("role") == "tool" else "\n\n")
         if it.get("role") == "tool":
@@ -363,7 +366,8 @@ class Derot(App):
         t.append(f"{icon} {sessions.status_text(st)}", style=color)
         if st.attached:
             t.append("  (attached elsewhere)", style="dim")
-        t.append(f"\n{st.sdef.dir} · {st.host.label} · {st.account.name}", style="dim")
+        agent = f" ({st.account.agent_label})" if st.account.agent != "claude" else ""
+        t.append(f"\n{st.sdef.dir} · {st.host.label} · {st.account.name}{agent}", style="dim")
         if st.sdef.note:
             t.append(f"\n{st.sdef.note}", style="italic")
         what = sessions.happening(st) if st.state != "busy" else st.message
@@ -431,7 +435,7 @@ class Derot(App):
                         scr = sessions.screen(self.cfg, name)
                 body = render_screen(scr, cursor=self.live == name)
             else:
-                body = render_conversation(items)
+                body = render_conversation(items, self.cfg.account_of(self.cfg.session(name)).agent)
         except sessions.SessionError as e:
             body = Text(str(e), style="dim")
         except Exception as e:
@@ -718,7 +722,7 @@ class Derot(App):
         try:
             s = self.cfg.session(name)
             if not installer.ensure_hooks(self.cfg, self.cfg.host_of(s),
-                                          self.cfg.account_of(s).config_dir):
+                                          self.cfg.account_of(s)):
                 self.call_from_thread(
                     self.notify, f"status hooks for {s.account} on {s.host} couldn't be set "
                     "up, so its status may stay idle (details: derot log)",
@@ -851,12 +855,14 @@ class Derot(App):
         new_accounts = [a for a in new.accounts if a not in old.accounts]
         for name in new_accounts:
             acct = new.accounts[name]
-            if "ANTHROPIC_API_KEY" in acct.env:
+            if {"ANTHROPIC_API_KEY", "OPENAI_API_KEY"} & set(acct.env):
                 continue
             host = next((s.host for s in new.sessions if s.account == name), "local")
+            how = ("`codex login` will run: finish signing in to come back."
+                   if acct.agent == "codex" else
+                   "Claude Code will open: type /login, then /exit to come back.")
             self.push_screen(
-                Confirm(f"Log in to the new account “{name}” on {host} now?\n"
-                        "Claude Code will open: type /login, then /exit to come back.",
+                Confirm(f"Log in to the new account “{name}” on {host} now?\n{how}",
                         yes="Log in now", no="Later"),
                 lambda ok, n=name, h=host: ok and self.login(n, h))
 
@@ -933,8 +939,12 @@ class Derot(App):
     def login(self, account: str, host: str) -> None:
         try:
             with self.suspend():
-                print(f"Opening Claude Code for account {account} on {host}.")
-                print("Type /login to sign in, then /exit to come back to derot.\n")
+                if self.cfg.accounts[account].agent == "codex":
+                    print(f"Running `codex login` for account {account} on {host}.")
+                    print("Finish signing in; you'll come back to derot when it's done.\n")
+                else:
+                    print(f"Opening Claude Code for account {account} on {host}.")
+                    print("Type /login to sign in, then /exit to come back to derot.\n")
                 sessions.login(self.cfg, account, host)
         except Exception as e:
             self.trace("couldn't open login", e)

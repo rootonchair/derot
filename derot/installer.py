@@ -1,4 +1,5 @@
-"""`derot setup [--remove]`: install the status hook and merge it into settings.json."""
+"""`derot setup [--remove]`: install the status hook and merge it into each account's
+settings (Claude Code: settings.json; Codex: hooks.json)."""
 
 from __future__ import annotations
 
@@ -7,7 +8,7 @@ from pathlib import Path
 from typing import Callable, Dict, List
 
 from . import remote
-from .config import Config, Host
+from .config import Account, Config, Host
 from .log import log
 
 EVENTS = [
@@ -19,6 +20,11 @@ EVENTS = [
 # older versions may reject unknown event names in settings.json.
 EXTRA_EVENTS = ["PermissionRequest", "PostToolUseFailure", "StopFailure"]
 TOOL_EVENTS = ("PreToolUse", "PostToolUse", "PermissionRequest", "PostToolUseFailure")
+# Codex's hooks (developers.openai.com/codex/hooks): same shape and names, no Notification,
+# plus Interrupt. Codex only runs them after you approve them once in its /hooks screen.
+CODEX_EVENTS = ["SessionStart", "UserPromptSubmit", "PreToolUse", "PermissionRequest",
+                "PostToolUse", "Stop", "Interrupt", "SessionEnd"]
+SETTINGS_FILE = {"claude": "settings.json", "codex": "hooks.json"}
 
 CHECK_SCRIPT = r"""
 uname -s
@@ -27,8 +33,15 @@ for t in tmux python3; do
 done
 # the login shell only prints its environment (works in fish/csh too); sh does the rest
 lp=$("${SHELL:-/bin/sh}" -lic env </dev/null 2>/dev/null | grep '^PATH=' | tail -n 1)
-c=$1; case $c in "~/"*) c=$HOME/${c#"~/"};; esac
-p=$([ -n "$lp" ] && PATH=${lp#PATH=}; command -v "$c" 2>/dev/null | tail -n 1)
+find_cmd() {
+  c=$1; case $c in "~/"*) c=$HOME/${c#"~/"};; esac
+  ([ -n "$lp" ] && PATH=${lp#PATH=}; command -v "$c" 2>/dev/null | tail -n 1)
+}
+if [ -n "$2" ]; then
+  if [ -n "$(find_cmd "$2")" ]; then echo "codex=yes"; else echo "codex=no"; fi
+fi
+[ -n "$1" ] || { echo "@@END"; exit 0; }
+p=$(find_cmd "$1")
 if [ -n "$p" ]; then
   echo "claude=yes"
   python3 - "$p" <<'PY' 2>/dev/null
@@ -62,8 +75,9 @@ mode = sys.argv[2]
 events = [e for e in sys.argv[3].split(",") if e]
 installing = set(e for e in sys.argv[4].split(",") if e) if len(sys.argv) > 4 else set(events)
 tool_events = ("PreToolUse", "PostToolUse", "PermissionRequest", "PostToolUseFailure")
-path = os.path.join(cdir, "settings.json")
-shown = os.path.join(sys.argv[1], "settings.json")
+name = sys.argv[5] if len(sys.argv) > 5 else "settings.json"  # Codex: hooks.json
+path = os.path.join(cdir, name)
+shown = os.path.join(sys.argv[1], name)
 MARK = "/.derot/hook.py"
 
 if os.path.exists(path):
@@ -111,7 +125,8 @@ for ev in events:
     if mode == "install" and ev in installing:
         group = {"hooks": [{"type": "command",
                             "command": "python3 ~/.derot/hook.py " + ev,
-                            "timeout": 10}]}
+                            # Codex caps these two at 3 s; the hook takes milliseconds
+                            "timeout": 3 if ev in ("SessionEnd", "Interrupt") else 10}]}
         if ev in tool_events:
             group = {"matcher": "*", "hooks": group["hooks"]}
         kept_groups.append(group)
@@ -147,12 +162,16 @@ def _hint(tool: str, host: Host, is_mac: bool) -> str:
         return "brew install tmux" if is_mac else "sudo apt install tmux"
     if tool == "python3":
         return "brew install python" if is_mac else "sudo apt install python3"
+    if tool == "codex":
+        return (f"install Codex there (npm install -g @openai/codex), or set `codex:` to its "
+                f"full path for host '{host.name}'")
     return f"install Claude Code there, or set `claude:` to its full path for host '{host.name}'"
 
 
 HOOKS_PRESENT_SCRIPT = r"""
 import hashlib, os, sys
-p = os.path.join(os.path.expanduser(sys.argv[1]), "settings.json")
+p = os.path.join(os.path.expanduser(sys.argv[1]), sys.argv[3] if len(sys.argv) > 3
+                 else "settings.json")
 try:
     with open(os.path.expanduser("~/.derot/hook.py"), "rb") as f:
         hook = hashlib.sha256(f.read()).hexdigest()
@@ -164,7 +183,7 @@ try:
 except Exception:
     wired = False
 print("no hook.py" if not hook else "different hook.py" if hook != sys.argv[2]
-      else "not in settings.json" if not wired else "yes")
+      else "not in " + os.path.basename(p) if not wired else "yes")
 """
 
 
@@ -172,11 +191,12 @@ def hook_hash() -> str:
     return hashlib.sha256(hook_source().encode()).hexdigest()
 
 
-def hooks_present(host: Host, config_dir: str) -> bool:
+def hooks_present(host: Host, config_dir: str, agent: str = "claude") -> bool:
     """True if this version's hook script is on the host (not cut off, not an older one)
     and wired into that account folder's settings. A failed check counts as present:
     starting shouldn't depend on it."""
-    proc = remote.python(host, HOOKS_PRESENT_SCRIPT, config_dir, hook_hash(), timeout=15)
+    proc = remote.python(host, HOOKS_PRESENT_SCRIPT, config_dir, hook_hash(),
+                         SETTINGS_FILE[agent], timeout=15)
     if proc.returncode != 0:
         log.warning("couldn't check hooks on %s: %s", host.name, remote.full_error(proc))
         return True
@@ -186,13 +206,13 @@ def hooks_present(host: Host, config_dir: str) -> bool:
     return answer == "yes"
 
 
-def ensure_hooks(cfg: Config, host: Host, config_dir: str,
+def ensure_hooks(cfg: Config, host: Host, account: Account,
                  out: Callable[[str], None] = lambda line: None) -> bool:
     """Set up hooks on the host if that account folder doesn't have them (e.g. a setup
     that was interrupted). Returns False only if a needed setup failed."""
-    if hooks_present(host, config_dir):
+    if hooks_present(host, account.config_dir, account.agent):
         return True
-    log.info("hooks missing for %s on %s: setting them up", config_dir, host.name)
+    log.info("hooks missing for %s on %s: setting them up", account.config_dir, host.name)
     return setup_host(cfg, host, False, out)
 
 
@@ -211,8 +231,12 @@ def setup_host(cfg: Config, host: Host, remove: bool, out: Callable[[str], None]
         else:
             log.error("setup %s: ✗ %s%s", host.name, text, f"\n{detail}" if detail else "")
 
+    agents = {a.agent for a in cfg.accounts_on(host.name)} or {"claude"}
     if not remove:
-        proc = remote.sh(host, CHECK_SCRIPT, (host.claude.split() or ["claude"])[0], timeout=40)
+        proc = remote.sh(host, CHECK_SCRIPT,
+                         (host.claude.split() or ["claude"])[0] if "claude" in agents else "",
+                         (host.codex.split() or ["codex"])[0] if "codex" in agents else "",
+                         timeout=40)
         if proc.returncode != 0 or "@@END" not in proc.stdout:
             mark(False, f"can't reach it: {remote.error_text(proc)}", remote.full_error(proc))
             return False
@@ -226,9 +250,9 @@ def setup_host(cfg: Config, host: Host, remove: bool, out: Callable[[str], None]
                 extras = [e for e in EXTRA_EVENTS if e in v.split(",")]
             elif v:
                 found[k] = v == "yes"
-        for tool in ("tmux", "python3", "claude"):
+        for tool in ("tmux", "python3", *sorted(agents)):
             if found.get(tool):
-                mark(True, tool if tool != "claude" else f"claude ({host.claude})")
+                mark(True, f"{tool} ({host.command(tool)})" if tool in agents else tool)
             else:
                 mark(False, f"{tool} not found → {_hint(tool, host, is_mac)}")
         if not found.get("python3"):
@@ -254,11 +278,16 @@ def setup_host(cfg: Config, host: Host, remove: bool, out: Callable[[str], None]
         log.info("setup %s: extra events supported by its Claude Code: %s", host.name,
                  ", ".join(extras) or "none")
     for account in cfg.accounts_on(host.name):
-        proc = remote.python(host, MERGE_SCRIPT, account.config_dir, mode, ",".join(every),
-                             ",".join(install))
+        codex = account.agent == "codex"
+        events = (CODEX_EVENTS, CODEX_EVENTS) if codex else (every, install)
+        proc = remote.python(host, MERGE_SCRIPT, account.config_dir, mode, ",".join(events[0]),
+                             ",".join(events[1]), SETTINGS_FILE[account.agent])
         msg = remote.last_line(proc.stdout) or remote.error_text(proc)
         mark(proc.returncode == 0, f"{account.name}: {msg}",
              "" if proc.returncode == 0 else remote.full_error(proc))
+        if codex and not remove and proc.returncode == 0:
+            out(f"  ! {account.name}: Codex runs new hooks only after you approve them: open a "
+                "Codex session and choose them in /hooks (once, and again after updates)")
     return ok
 
 
