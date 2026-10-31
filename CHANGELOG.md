@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- The session list shows just the icon, session and status, so it fits its panel: long names
+  are shortened with "…", remote sessions get a short `@machine` tag, and the status is
+  never cut off. Account and folder are in the details panel.
+
 ## 0.1.1 (2026-11-01)
 
 - README: images and links use full URLs, so the screenshots show on PyPI.

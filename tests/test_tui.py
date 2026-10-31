@@ -212,3 +212,30 @@ async def test_clicking_a_row_selects_it_and_never_attaches(env, monkeypatch):
         await pilot.press("f")
         await pilot.pause()
         assert attached == ["b"]
+
+
+async def test_session_list_fits_its_panel(env):
+    """Long names and machines used to push the Status column out of the panel."""
+    from rich.text import Text
+    env.write_config("""
+hosts: {cloud_gpu_box_2: {ssh: me@x}}
+accounts: {mycompany: {config_dir: ~/.claude-co}}
+sessions:
+  - {name: a-really-long-customer-support-bot, dir: /x, account: mycompany}
+  - {name: data-pipeline, host: cloud_gpu_box_2, dir: /y, account: mycompany}
+""")
+    cfg = config.load()
+    app = Derot(cfg, poll_on_mount=False)
+    app.action_refresh = lambda: None
+    async with app.run_test(size=(140, 20)) as pilot:
+        app.apply_poll([Status(s, cfg.host_of(s), cfg.account_of(s), state="waiting",
+                               ts=time.time() - 40) for s in cfg.sessions], {})
+        await pilot.pause()
+        table = app.query_one(DataTable)
+        rows = [[Text.from_markup(str(c)) if not isinstance(c, Text) else c
+                 for c in table.get_row_at(i)] for i in range(table.row_count)]
+        widths = [sum(c.cell_len for c in row) + 2 * len(row) for row in rows]
+        assert max(widths) <= table.size.width
+        assert all(row[-1].plain.startswith("needs you") for row in rows)  # status kept
+        assert rows[0][1].plain.endswith("…")  # long name shortened
+        assert "@cloud_gpu" in rows[1][1].plain  # where a remote session runs

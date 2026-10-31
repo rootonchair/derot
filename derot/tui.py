@@ -123,7 +123,7 @@ class Derot(App):
     #summary { height: 1; padding: 0 1; background: $panel; }
     #main { height: 1fr; }
     #left { width: 52; min-width: 34; border-right: solid $panel-lighten-2; }
-    #table { height: 1fr; }
+    #table { height: 1fr; overflow-x: hidden; }
     #empty { height: 1fr; content-align: center middle; color: $text-muted; display: none; }
     #right { width: 1fr; }
     #detail { height: auto; max-height: 8; padding: 0 1; }
@@ -221,8 +221,7 @@ class Derot(App):
 
     def on_mount(self) -> None:
         table = self.w_table
-        for key, label in [("icon", " "), ("name", "Session"), ("where", "Machine"),
-                           ("status", "Status")]:
+        for key, label in [("icon", " "), ("name", "Session"), ("status", "Status")]:
             table.add_column(label, key=key)
         table.focus()
         self.screen.set_class(self.size.width < NARROW_WIDTH, "narrow")
@@ -280,6 +279,7 @@ class Derot(App):
 
     def on_resize(self, event) -> None:
         self.screen.set_class(event.size.width < NARROW_WIDTH, "narrow")
+        self.call_after_refresh(self.render_table)  # re-fit names to the new width
 
     def render_all(self) -> None:
         self.render_summary()
@@ -331,17 +331,23 @@ class Derot(App):
         keep = self.selected_name()
         now = time.time()
         table.clear()
+        status = {st.name: sessions.status_text(st, now) for st in self.statuses}
+        # one row must fit the panel: icon, name, status, 1 cell of padding around each of the
+        # 3 columns and room for a scrollbar; long names are shortened, status never is
+        width = table.size.width or self.w_left_width()
+        name_width = max(8, width - 1 - max(map(len, status.values()), default=0) - 6 - 4)
         for st in self.statuses:
             icon, _, color, bold = STYLE[st.state]
-            dim = st.state in ("idle", "stopped")
             name = Text(st.name, style="bold" if st.state in ("waiting", "done") else "")
+            if not st.host.is_local:  # where it runs; account and folder are in the details
+                name.append(f" @{st.host.name}", style="dim")
             if st.attached:
                 name.append(" ◂", style="dim")
+            name.truncate(name_width, overflow="ellipsis")
             table.add_row(
                 Text(icon, style=f"bold {color}" if bold else color),
                 name,
-                Text(st.where, style="dim" if dim else ""),
-                Text(sessions.status_text(st, now), style=f"bold {color}" if bold else color),
+                Text(status[st.name], style=f"bold {color}" if bold else color),
                 key=st.name,
             )
         empty = not self.cfg.sessions
@@ -352,6 +358,9 @@ class Derot(App):
                 table.move_cursor(row=table.get_row_index(keep), animate=False)
             except Exception:
                 pass
+
+    def w_left_width(self) -> int:
+        return 52  # #left's CSS width, before the first layout
 
     def render_detail(self) -> None:
         detail = self.w_detail
