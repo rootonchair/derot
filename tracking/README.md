@@ -1,4 +1,4 @@
-# ccdeck tracking
+# derot tracking
 
 One subfolder per item; each has a `README.md` with problem, location, proposed fix and
 acceptance checks. Update the item's **Status** (`open` → `in progress` → `done` / `wontfix`)
@@ -18,7 +18,7 @@ and this table together. Line numbers refer to the code as of 2026-10-29.
 | 010 | [Removing a session leaves its state file; re-adding the name shows old data](010-remove-leaves-stale-state/README.md) | ux | P3 | S | done |
 | 011 | [Remote project folder isn't checked until you attach](011-remote-dir-not-validated/README.md) | ux | P3 | S | done |
 | 012 | [Pick which conversation to resume (and make `c` resume the right one)](012-resume-specific-conversation/README.md) | feature | P0 | M | done |
-| 013 | [Discover and adopt Claude sessions started outside ccdeck](013-discover-adopt-outside-sessions/README.md) | feature | P0 | M | open |
+| 013 | [Discover and adopt Claude sessions started outside derot](013-discover-adopt-outside-sessions/README.md) | feature | P0 | M | open |
 | 014 | [Approve or reply without attaching](014-quick-reply-approve/README.md) | feature | P1 | S | done |
 | 015 | [Live preview of the selected session's screen](015-live-pane-preview/README.md) | feature | P1 | S–M | done |
 | 016 | [`watch` as a background service (launchd), no duplicate alerts](016-watch-launchd-service/README.md) | feature | P1 | S | open |
@@ -45,17 +45,17 @@ and this table together. Line numbers refer to the code as of 2026-10-29.
 | 037 | [Informational notifications are shown as "needs you"](037-informational-notification-needs-you/README.md) | bug | P2 | S | done |
 | 038 | [`refresh: .inf` is accepted, then every save crashes](038-infinite-refresh-crashes-save/README.md) | bug | P3 | S | done |
 | 039 | [`watch` lock isn't atomic and survives SIGTERM](039-watch-lock-race-stale/README.md) | bug | P3 | S | done |
-| 040 | [After approving a prompt from ccdeck, the row stays "needs you"](040-approved-prompt-stays-needs-you/README.md) | bug | P2 | S | done |
+| 040 | [After approving a prompt from derot, the row stays "needs you"](040-approved-prompt-stays-needs-you/README.md) | bug | P2 | S | done |
 | 041 | [Shift/Alt+Enter, Ctrl+arrows and Ctrl+_ never reached the session while typing live](041-live-keys-dropped/README.md) | bug | P2 | S | done |
-| 042 | [API keys stayed on hosts in ~/.ccdeck/env/<name>.sh](042-env-file-left-on-host/README.md) | bug/security | P1 | S | done |
+| 042 | [API keys stayed on hosts in ~/.derot/env/<name>.sh](042-env-file-left-on-host/README.md) | bug/security | P1 | S | done |
 | 043 | [Every ssh call fails when a VM account's login shell is csh/tcsh](043-remote-csh-login-shell/README.md) | bug | P3 | M | open |
 | 044 | [Permission alerts said "wants to use Bash" without the command](044-permission-alert-drops-command/README.md) | bug | P3 | S | done |
 | 045 | [A new account's session stayed "idle" forever (hook setup interrupted)](045-new-account-stays-idle/README.md) | bug | P1 | S | done |
 | 046 | [A hook.py cut off by an interrupted setup counted as installed](046-cut-off-hook-never-repaired/README.md) | bug | P2 | S | done |
-| 047 | [Hosts kept an older hook.py until `ccdeck setup` was re-run](047-old-hook-on-hosts/README.md) | bug | P2 | S | done |
+| 047 | [Hosts kept an older hook.py until `derot setup` was re-run](047-old-hook-on-hosts/README.md) | bug | P2 | S | done |
 | 048 | [A timed-out command left its children running](048-timeout-leaves-children/README.md) | bug | P3 | S | done |
 | 049 | [A failed start left the account's env file (API key) on the host](049-env-file-after-failed-start/README.md) | bug/security | P2 | S | done |
-| 050 | [`ccdeck watch` poll errors only went to stderr](050-watch-errors-not-logged/README.md) | bug | P3 | S | done |
+| 050 | [`derot watch` poll errors only went to stderr](050-watch-errors-not-logged/README.md) | bug | P3 | S | done |
 | 051 | [Quitting the console silently waits for background workers](051-quit-waits-for-workers/README.md) | ux/bug | P3 | S–M | open |
 | 052 | [Preview resizing leaves sessions at the preview's size after the console quits](052-preview-fit-sticks-after-exit/README.md) | bug | P3 | S | open |
 | 053 | [Toasts raised while attached or logging in may expire unseen (suspected)](053-toasts-expire-while-suspended/README.md) | ux | P3 | S | open |
@@ -68,7 +68,7 @@ and this table together. Line numbers refer to the code as of 2026-10-29.
 1. **001–004**: P0 bug fixes (wrong-session kill, dotted names, wiped status, stuck status)
 2. **012**: resume a specific conversation (stores `session_id`; base for 006 and 013)
 3. **013**: discover/adopt outside sessions (revisits a SPEC non-goal)
-4. **021**: waiting on a reproduction with `ccdeck log -f`
+4. **021**: waiting on a reproduction with `derot log -f`
 5. P1s: 005, 007, 014, 015, 016, 006, 008; then P2s.
 
 ## Reference designs

@@ -11,13 +11,13 @@
 
 ## Problem
 
-`acquire_watch_lock()` checks the pid file, then writes it: two `ccdeck watch` processes started together (login items, a launchd restart overlapping) can both take the lock and send every alert twice. The file is removed only by `atexit`, which doesn't run on SIGTERM (how launchd stops a job, see 016); the stale pid can later match an unrelated process, and the console then leaves desktop alerts to a `watch` that isn't running.
+`acquire_watch_lock()` checks the pid file, then writes it: two `derot watch` processes started together (login items, a launchd restart overlapping) can both take the lock and send every alert twice. The file is removed only by `atexit`, which doesn't run on SIGTERM (how launchd stops a job, see 016); the stale pid can later match an unrelated process, and the console then leaves desktop alerts to a `watch` that isn't running.
 
 ## Where
 
-- `ccdeck/notify.py:79` `acquire_watch_lock()`
-- `ccdeck/notify.py:62` `watch_running()`
-- `ccdeck/cli.py:121` `cmd_watch()`
+- `derot/notify.py:79` `acquire_watch_lock()`
+- `derot/notify.py:62` `watch_running()`
+- `derot/cli.py:121` `cmd_watch()`
 
 ## Proposed fix
 

@@ -30,7 +30,7 @@ class Env:
         self.vms = root / "vms"
         self.bin = root / "bin"
         self.claude = self.bin / "claude"
-        self.config = self.home / ".config" / "ccdeck" / "config.yaml"
+        self.config = self.home / ".config" / "derot" / "config.yaml"
 
     def vm_home(self, host="vm") -> Path:
         return self.vms / host / "home"
@@ -44,7 +44,7 @@ class Env:
         return env
 
     def tmux(self, *args, host="local"):
-        return subprocess.run(["tmux", "-L", "ccdeck", *args], capture_output=True, text=True,
+        return subprocess.run(["tmux", "-L", "derot", *args], capture_output=True, text=True,
                               env=self.host_env(host))
 
     def send(self, name, text, host="local"):
@@ -83,7 +83,7 @@ def env(monkeypatch):
     monkeypatch.setenv("TMUX_TMPDIR", str(root / "tmux"))
     monkeypatch.setenv("FAKE_SSH_ROOT", str(e.vms))
     monkeypatch.setenv("SHELL", "/bin/sh")
-    monkeypatch.setenv("CCDECK_CONFIG", str(e.config))
+    monkeypatch.setenv("DEROT_CONFIG", str(e.config))
     monkeypatch.setenv("PATH", f"{e.bin}:{os.environ['PATH']}")
     monkeypatch.delenv("TMUX", raising=False)
     monkeypatch.delenv("CLAUDE_CONFIG_DIR", raising=False)

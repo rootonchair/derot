@@ -7,7 +7,7 @@
 | Priority | P2 |
 | Size | M |
 | Verified | n/a |
-| Source | ccdeck review, 2026-10-29 |
+| Source | derot review, 2026-10-29 |
 
 ## Problem
 
@@ -15,8 +15,8 @@ No visibility into how much each session/account is spending.
 
 ## Where
 
-- `ccdeck/hook.py` `Stop` handling
-- `ccdeck/tui.py` table/summary
+- `derot/hook.py` `Stop` handling
+- `derot/tui.py` table/summary
 
 ## Proposed fix
 

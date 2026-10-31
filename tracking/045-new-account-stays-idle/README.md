@@ -15,12 +15,12 @@ After saving a session with a new account (`work`), the background hook setup lo
 
 ## Where
 
-- `ccdeck/tui.py` `install_hooks_worker` (fire-and-forget)
-- `ccdeck/remote.py` `run()`
+- `derot/tui.py` `install_hooks_worker` (fire-and-forget)
+- `derot/remote.py` `run()`
 
 ## Fix
 
-- `installer.ensure_hooks()` before every start (`start_worker`, `ccdeck start`): one quick check of the account folder's settings (and, since 046/047, the hook file's hash); runs setup if anything is missing, warns if that fails.
+- `installer.ensure_hooks()` before every start (`start_worker`, `derot start`): one quick check of the account folder's settings (and, since 046/047, the hook file's hash); runs setup if anything is missing, warns if that fails.
 - `remote.run()` uses `start_new_session=True`: worker commands have no controlling terminal.
 
 ## Done when
@@ -29,4 +29,4 @@ After saving a session with a new account (`work`), the background hook setup lo
 
 ## Notes
 
-Tests: `test_045_*` in `tests/test_bughunt_new.py`; `test_sessions.py::test_idle_without_hooks` now creates the session without `ccdeck start`.
+Tests: `test_045_*` in `tests/test_bughunt_new.py`; `test_sessions.py::test_idle_without_hooks` now creates the session without `derot start`.

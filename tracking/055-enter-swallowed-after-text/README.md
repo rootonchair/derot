@@ -15,7 +15,7 @@ Claude Code 2.1.316 reads a long burst of text (81 characters) plus Enter in one
 
 ## Where
 
-`ccdeck/sessions.py` `send_input()`
+`derot/sessions.py` `send_input()`
 
 ## Fix
 

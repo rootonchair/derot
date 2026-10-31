@@ -1,4 +1,4 @@
-"""ccdeck command-line entry point."""
+"""derot command-line entry point."""
 
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ def cmd_init(args) -> int:
     path = config_mod.config_path()
     if config_mod.ensure_config(path):
         print(f"Created {path}")
-        print("Next: edit it, then run `ccdeck login ACCOUNT` and `ccdeck setup`.")
+        print("Next: edit it, then run `derot login ACCOUNT` and `derot setup`.")
     else:
         print(f"{path} already exists")
     return 0
@@ -93,11 +93,11 @@ def cmd_start(args) -> int:
     try:
         s = cfg.session(args.name)
         if not installer.ensure_hooks(cfg, cfg.host_of(s), cfg.account_of(s).config_dir):
-            print(f"ccdeck: status hooks for {s.account} on {s.host} couldn't be set up "
-                  "(see `ccdeck log`)", file=sys.stderr)
+            print(f"derot: status hooks for {s.account} on {s.host} couldn't be set up "
+                  "(see `derot log`)", file=sys.stderr)
         sessions.start(cfg, args.name, cont=args.cont, resume=args.resume or "")
     except sessions.SessionError as e:
-        print(f"ccdeck: {e}", file=sys.stderr)
+        print(f"derot: {e}", file=sys.stderr)
         return 1
     if args.detach:
         print(f"started {args.name}")
@@ -112,7 +112,7 @@ def cmd_history(args) -> int:
     try:
         items = sessions.conversations(cfg, args.name, limit=args.n)
     except sessions.SessionError as e:
-        print(f"ccdeck: {e}", file=sys.stderr)
+        print(f"derot: {e}", file=sys.stderr)
         return 1
     if not items:
         print(f"no past conversations for {args.name}")
@@ -135,7 +135,7 @@ def cmd_stop(args) -> int:
     try:
         sessions.stop(cfg, args.name)
     except sessions.SessionError as e:
-        print(f"ccdeck: {e}", file=sys.stderr)
+        print(f"derot: {e}", file=sys.stderr)
         return 1
     print(f"stopped {args.name}")
     return 0
@@ -147,7 +147,7 @@ def cmd_watch(args) -> int:
     from .notify import acquire_watch_lock
     cfg, _ = _load()
     if not acquire_watch_lock():
-        print("ccdeck watch is already running", file=sys.stderr)
+        print("derot watch is already running", file=sys.stderr)
         return 1
     notifier = Notifier(cfg.notify)
     print(f"watching {len(cfg.sessions)} session(s) every {cfg.refresh:g}s — Ctrl-C to stop")
@@ -193,7 +193,7 @@ def cmd_log(args) -> int:
             return 0
     text = log_mod.tail(args.lines)
     print(text if text else "(empty)")
-    print(f"\n— {path}   (ccdeck log -f to follow; CCDECK_DEBUG=1 logs every command)",
+    print(f"\n— {path}   (derot log -f to follow; DEROT_DEBUG=1 logs every command)",
           file=sys.stderr)
     return 0
 
@@ -204,17 +204,17 @@ def cmd_login(args) -> int:
     try:
         return sessions.login(cfg, args.account, args.host)
     except sessions.SessionError as e:
-        print(f"ccdeck: {e}", file=sys.stderr)
+        print(f"derot: {e}", file=sys.stderr)
         return 1
 
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        prog="ccdeck",
+        prog="derot",
         description="One console for every Claude Code session, across projects, "
                     "accounts and machines.",
     )
-    p.add_argument("--version", action="version", version=f"ccdeck {__version__}")
+    p.add_argument("--version", action="version", version=f"derot {__version__}")
     p.set_defaults(func=cmd_tui)
     sub = p.add_subparsers(dest="command", metavar="COMMAND")
 
@@ -231,7 +231,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("-c", "--continue", dest="cont", action="store_true",
                     help="resume the last conversation in that folder")
     sp.add_argument("-r", "--resume", metavar="ID",
-                    help="resume that conversation (ids from `ccdeck history NAME`)")
+                    help="resume that conversation (ids from `derot history NAME`)")
     sp.add_argument("-d", "--detach", action="store_true", help="don't attach")
     sp.set_defaults(func=cmd_start)
 
@@ -251,7 +251,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("watch", help="poll and send notifications without the console"
                    ).set_defaults(func=cmd_watch)
 
-    sp = sub.add_parser("log", help="show the log (~/.ccdeck/ccdeck.log), for tracing errors")
+    sp = sub.add_parser("log", help="show the log (~/.derot/derot.log), for tracing errors")
     sp.add_argument("-n", "--lines", type=int, default=60, help="how many lines (default 60)")
     sp.add_argument("-f", "--follow", action="store_true", help="keep printing new lines")
     sp.set_defaults(func=cmd_log)
@@ -267,18 +267,18 @@ def main(argv: Optional[List[str]] = None) -> int:
     args = build_parser().parse_args(argv)
     log_mod.setup()
     if args.func is not cmd_log:
-        log.debug("ccdeck %s", " ".join(sys.argv[1:] if argv is None else argv))
+        log.debug("derot %s", " ".join(sys.argv[1:] if argv is None else argv))
     try:
         return int(args.func(args) or 0)
     except ConfigError as e:
         log.error("config error: %s", e)
-        print(f"ccdeck: {e}", file=sys.stderr)
+        print(f"derot: {e}", file=sys.stderr)
         return 2
     except KeyboardInterrupt:
         return 130
     except Exception as e:
-        log.critical("unexpected error in `ccdeck %s`", args.command or "", exc_info=e)
-        print(f"ccdeck: unexpected error: {e}\n(full traceback in {log_mod.log_path()})",
+        log.critical("unexpected error in `derot %s`", args.command or "", exc_info=e)
+        print(f"derot: unexpected error: {e}\n(full traceback in {log_mod.log_path()})",
               file=sys.stderr)
         return 1
 

@@ -1,5 +1,5 @@
-# ccdeck configuration
-# Docs: run `ccdeck --help`, or see the README.
+# derot configuration
+# Docs: run `derot --help`, or see the README.
 
 # Machines. "local" (this computer) always exists; add VMs reachable over SSH.
 hosts:
@@ -33,4 +33,4 @@ notify:
   sound: Glass                 # macOS sound name, "" = silent
 
 refresh: 3                     # poll interval in seconds (min 1)
-detach_key: C-q                # key that returns to ccdeck from a session
+detach_key: C-q                # key that returns to derot from a session

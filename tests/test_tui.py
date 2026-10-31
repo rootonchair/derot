@@ -3,9 +3,9 @@ import time
 import yaml
 from textual.widgets import DataTable, Static
 
-from ccdeck import config, notify
-from ccdeck.sessions import Status
-from ccdeck.tui import CCDeck
+from derot import config, notify
+from derot.sessions import Status
+from derot.tui import Derot
 
 CFG = """
 hosts: {vm: {ssh: me@vm}}
@@ -27,7 +27,7 @@ def statuses(cfg, states, messages=None):
         st = Status(s, cfg.host_of(s), cfg.account_of(s), state=states[s.name],
                     ts=time.time() - 5, message=(messages or {}).get(s.name, ""))
         out.append(st)
-    from ccdeck.sessions import sort_key
+    from derot.sessions import sort_key
     return sorted(out, key=sort_key)
 
 
@@ -40,7 +40,7 @@ async def test_renders_rows_keeps_cursor_and_notifies_once(monkeypatch):
     sent = []
     monkeypatch.setattr(notify, "send", lambda t, b, s="": sent.append((t, b)))
     cfg = make_cfg()
-    app = CCDeck(cfg, poll_on_mount=False)
+    app = Derot(cfg, poll_on_mount=False)
     async with app.run_test(size=(140, 30)) as pilot:
         app.apply_poll(statuses(cfg, {"alpha": "idle", "beta": "busy", "gamma": "stopped"}), {})
         await pilot.pause()
@@ -77,7 +77,7 @@ async def test_first_poll_does_not_alert_and_offline_summary(monkeypatch):
     sent = []
     monkeypatch.setattr(notify, "send", lambda *a: sent.append(a))
     cfg = make_cfg()
-    app = CCDeck(cfg, poll_on_mount=False)
+    app = Derot(cfg, poll_on_mount=False)
     async with app.run_test(size=(140, 30)) as pilot:
         app.apply_poll(statuses(cfg, {"alpha": "waiting", "beta": "offline", "gamma": "done"}),
                        {"vm": "Connection refused"})
@@ -89,9 +89,9 @@ async def test_first_poll_does_not_alert_and_offline_summary(monkeypatch):
 
 async def test_stop_needs_double_press(env, monkeypatch):
     cfg = make_cfg()
-    app = CCDeck(cfg, poll_on_mount=False)
+    app = Derot(cfg, poll_on_mount=False)
     stopped = []
-    monkeypatch.setattr("ccdeck.sessions.stop", lambda c, n: stopped.append(n))
+    monkeypatch.setattr("derot.sessions.stop", lambda c, n: stopped.append(n))
     async with app.run_test(size=(140, 30)) as pilot:
         app.apply_poll(statuses(cfg, {"alpha": "busy", "beta": "idle", "gamma": "stopped"}), {})
         await pilot.pause()
@@ -106,7 +106,7 @@ async def test_stop_needs_double_press(env, monkeypatch):
 
 async def test_empty_state():
     cfg = config.parse({})
-    app = CCDeck(cfg, poll_on_mount=False)
+    app = Derot(cfg, poll_on_mount=False)
     async with app.run_test(size=(100, 20)) as pilot:
         await pilot.pause()
         empty = app.query_one("#empty", Static)
@@ -116,7 +116,7 @@ async def test_empty_state():
 async def test_real_poll_against_tmux(env):
     import shutil
     import pytest
-    from ccdeck import cli
+    from derot import cli
     if not shutil.which("tmux"):
         pytest.skip("tmux not installed")
     env.write_config(f"""
@@ -128,7 +128,7 @@ sessions:
     (env.home / "shop").mkdir()
     cli.main(["setup"])
     cli.main(["start", "shop", "-d"])
-    app = CCDeck(config.load())
+    app = Derot(config.load())
     async with app.run_test(size=(140, 30)) as pilot:
         for _ in range(50):
             await pilot.pause(0.2)
@@ -140,16 +140,16 @@ sessions:
 
 
 async def test_s_c_start_in_background_enter_types_f_goes_full_screen(env, monkeypatch):
-    from ccdeck import sessions
+    from derot import sessions
     started, attached = [], []
     monkeypatch.setattr(sessions, "start", lambda cfg, name, cont=False, *a: started.append(
         (name, cont)))
-    monkeypatch.setattr(CCDeck, "attach", lambda self, name: attached.append(name))
+    monkeypatch.setattr(Derot, "attach", lambda self, name: attached.append(name))
     monkeypatch.setattr(sessions, "screen", lambda cfg, name: sessions.Screen("screen"))
     monkeypatch.setattr(sessions, "fit", lambda *a: None)
     env.write_config("sessions: [{name: a, dir: /x}]\n")
     cfg = config.load()
-    app = CCDeck(cfg, poll_on_mount=False)
+    app = Derot(cfg, poll_on_mount=False)
     app.action_refresh = lambda: None
     async with app.run_test(size=(150, 40)) as pilot:
         stopped = [Status(s, cfg.host_of(s), cfg.account_of(s)) for s in cfg.sessions]
@@ -186,14 +186,14 @@ async def test_s_c_start_in_background_enter_types_f_goes_full_screen(env, monke
 
 
 async def test_clicking_a_row_selects_it_and_never_attaches(env, monkeypatch):
-    from ccdeck import sessions
+    from derot import sessions
     attached = []
-    monkeypatch.setattr(CCDeck, "attach", lambda self, name: attached.append(name))
+    monkeypatch.setattr(Derot, "attach", lambda self, name: attached.append(name))
     monkeypatch.setattr(sessions, "screen", lambda cfg, name: sessions.Screen("screen"))
     monkeypatch.setattr(sessions, "fit", lambda *a: None)
     env.write_config("sessions: [{name: a, dir: /x}, {name: b, dir: /y}]\n")
     cfg = config.load()
-    app = CCDeck(cfg, poll_on_mount=False)
+    app = Derot(cfg, poll_on_mount=False)
     app.action_refresh = lambda: None
     async with app.run_test(size=(150, 40)) as pilot:
         app.apply_poll([Status(s, cfg.host_of(s), cfg.account_of(s), state="idle")

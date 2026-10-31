@@ -1,10 +1,10 @@
 import yaml
 from textual.widgets import DataTable, Input, Static
 
-from ccdeck import config
-from ccdeck.config import Account, Host
-from ccdeck.forms import AccountForm, HostForm, SessionForm, slug
-from ccdeck.tui import CCDeck
+from derot import config
+from derot.config import Account, Host
+from derot.forms import AccountForm, HostForm, SessionForm, slug
+from derot.tui import Derot
 
 
 def start_cfg(env, text="accounts: {personal: {config_dir: ~/.claude}}\nsessions: []\n"):
@@ -39,7 +39,7 @@ def test_save_round_trip_keeps_backup(env):
 
 async def test_add_edit_remove_session_from_ui(env):
     (env.home / "code" / "shop-api").mkdir(parents=True)
-    app = CCDeck(start_cfg(env), poll_on_mount=False)
+    app = Derot(start_cfg(env), poll_on_mount=False)
     async with app.run_test(size=(140, 40)) as pilot:
         await pilot.press("n")
         await pilot.pause()
@@ -65,7 +65,7 @@ async def test_add_edit_remove_session_from_ui(env):
         assert config.load().sessions[0].note == "refunds"
 
         # remove (confirm with y): its files on the host go too (tracking 010)
-        state = env.home / ".ccdeck" / "state" / "shop-api.json"
+        state = env.home / ".derot" / "state" / "shop-api.json"
         state.parent.mkdir(parents=True, exist_ok=True)
         state.write_text('{"state": "done", "message": "old result"}')
         await pilot.press("d")
@@ -79,7 +79,7 @@ async def test_add_edit_remove_session_from_ui(env):
 
 
 async def test_session_form_validates(env):
-    app = CCDeck(start_cfg(env), poll_on_mount=False)
+    app = Derot(start_cfg(env), poll_on_mount=False)
     async with app.run_test(size=(140, 40)) as pilot:
         await pilot.press("n")
         await pilot.pause()
@@ -105,7 +105,7 @@ async def test_session_form_validates(env):
 
 
 async def test_new_host_and_account_inline(env):
-    app = CCDeck(start_cfg(env), poll_on_mount=False)
+    app = Derot(start_cfg(env), poll_on_mount=False)
     async with app.run_test(size=(140, 40)) as pilot:
         await pilot.press("n")
         await pilot.pause()
@@ -125,7 +125,7 @@ async def test_new_host_and_account_inline(env):
 async def test_account_and_host_forms(env):
     cfg = start_cfg(env)
     results = []
-    app = CCDeck(cfg, poll_on_mount=False)
+    app = Derot(cfg, poll_on_mount=False)
     async with app.run_test(size=(140, 40)) as pilot:
         app.push_screen(AccountForm(cfg), results.append)
         await pilot.pause()
@@ -160,7 +160,7 @@ def write_ssh(home):
 
 
 def test_ssh_targets_from_config_and_known_hosts(env):
-    from ccdeck.forms import match_targets, ssh_targets
+    from derot.forms import match_targets, ssh_targets
     write_ssh(env.home)
     targets = ssh_targets()
     assert targets == [
@@ -180,7 +180,7 @@ async def test_host_form_lists_matching_targets(env):
     write_ssh(env.home)
     cfg = start_cfg(env)
     results = []
-    app = CCDeck(cfg, poll_on_mount=False)
+    app = Derot(cfg, poll_on_mount=False)
     async with app.run_test(size=(140, 40)) as pilot:
         app.push_screen(HostForm(cfg), results.append)
         await pilot.pause()
@@ -203,7 +203,7 @@ async def test_host_form_lists_matching_targets(env):
 
 
 async def test_folder_suggestions_on_an_ssh_machine(env):
-    from ccdeck.forms import PathSuggester
+    from derot.forms import PathSuggester
     (env.vm_home() / "code" / "shop-api").mkdir(parents=True)
     (env.vm_home() / "code" / ".hidden").mkdir()
     (env.vm_home() / "code" / "notes.txt").write_text("")
@@ -227,7 +227,7 @@ async def test_session_form_lists_folders_of_the_chosen_machine(env):
     (env.home / "code" / "local-only").mkdir(parents=True)
     cfg = start_cfg(env, "hosts: {vm: {ssh: me@vm}}\n"
                          "accounts: {personal: {config_dir: ~/.claude}}\nsessions: []\n")
-    app = CCDeck(cfg, poll_on_mount=False)
+    app = Derot(cfg, poll_on_mount=False)
 
     async def shown(pilot):
         lst = app.screen.query_one("#dir-matches")

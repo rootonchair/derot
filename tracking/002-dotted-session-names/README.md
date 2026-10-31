@@ -7,7 +7,7 @@
 | Priority | P0 |
 | Size | S |
 | Verified | confirmed (reproduced by reviewer) |
-| Source | ccdeck review, 2026-10-29 |
+| Source | derot review, 2026-10-29 |
 
 ## Problem
 
@@ -15,9 +15,9 @@ Names allow `.` and auto-naming keeps it (folder `next.js-site` → name `next.j
 
 ## Where
 
-- `ccdeck/config.py:15` `NAME_RE` allows `.`
-- `ccdeck/forms.py:37` `slug()` keeps `.`
-- all `-t` targets in `ccdeck/sessions.py` (see 001)
+- `derot/config.py:15` `NAME_RE` allows `.`
+- `derot/forms.py:37` `slug()` keeps `.`
+- all `-t` targets in `derot/sessions.py` (see 001)
 
 ## Proposed fix
 

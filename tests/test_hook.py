@@ -4,7 +4,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from ccdeck import hook
+from derot import hook
 
 HOOK = Path(hook.__file__)
 
@@ -12,16 +12,16 @@ HOOK = Path(hook.__file__)
 def run_hook(env_home, event, payload, session="s1"):
     env = dict(os.environ, HOME=str(env_home))
     if session:
-        env["CCDECK_SESSION"] = session
+        env["DEROT_SESSION"] = session
     else:
-        env.pop("CCDECK_SESSION", None)
+        env.pop("DEROT_SESSION", None)
     p = subprocess.run([sys.executable, str(HOOK), event], input=json.dumps(payload),
                        capture_output=True, text=True, env=env)
     return p
 
 
 def state(home, session="s1"):
-    return json.loads((home / ".ccdeck" / "state" / f"{session}.json").read_text())
+    return json.loads((home / ".derot" / "state" / f"{session}.json").read_text())
 
 
 def test_event_sequence(tmp_path):
@@ -68,11 +68,11 @@ def test_stop_without_transcript_says_finished(tmp_path):
 
 def test_noop_without_session_and_survives_garbage(tmp_path):
     p = run_hook(tmp_path, "Stop", {}, session=None)
-    assert p.returncode == 0 and not (tmp_path / ".ccdeck").exists()
-    env = dict(os.environ, HOME=str(tmp_path), CCDECK_SESSION="s1")
+    assert p.returncode == 0 and not (tmp_path / ".derot").exists()
+    env = dict(os.environ, HOME=str(tmp_path), DEROT_SESSION="s1")
     p = subprocess.run([sys.executable, str(HOOK), "Stop"], input="{{{", capture_output=True,
                        text=True, env=env)
     assert p.returncode == 0 and p.stdout == ""
-    (tmp_path / ".ccdeck" / "state" / "s1.json").write_text("garbage")
+    (tmp_path / ".derot" / "state" / "s1.json").write_text("garbage")
     assert run_hook(tmp_path, "SessionStart", {}).returncode == 0
     assert state(tmp_path)["state"] == "idle"

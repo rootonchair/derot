@@ -1,4 +1,4 @@
-"""`ccdeck setup [--remove]`: install the status hook and merge it into settings.json."""
+"""`derot setup [--remove]`: install the status hook and merge it into settings.json."""
 
 from __future__ import annotations
 
@@ -50,8 +50,8 @@ echo "@@END"
 # written next to it, then renamed: an interrupted upload never leaves a cut-off hook.py
 # (every hook call would fail, and the session would stay idle with no visible error)
 UPLOAD_SCRIPT = (
-    'mkdir -p "$HOME/.ccdeck/state" && t="$HOME/.ccdeck/.hook.py.$$" '
-    '&& cat > "$t" && chmod 755 "$t" && mv -f "$t" "$HOME/.ccdeck/hook.py" '
+    'mkdir -p "$HOME/.derot/state" && t="$HOME/.derot/.hook.py.$$" '
+    '&& cat > "$t" && chmod 755 "$t" && mv -f "$t" "$HOME/.derot/hook.py" '
     '|| { rm -f "$t"; exit 1; }'
 )
 
@@ -64,7 +64,7 @@ installing = set(e for e in sys.argv[4].split(",") if e) if len(sys.argv) > 4 el
 tool_events = ("PreToolUse", "PostToolUse", "PermissionRequest", "PostToolUseFailure")
 path = os.path.join(cdir, "settings.json")
 shown = os.path.join(sys.argv[1], "settings.json")
-MARK = "/.ccdeck/hook.py"
+MARK = "/.derot/hook.py"
 
 if os.path.exists(path):
     try:
@@ -76,7 +76,7 @@ if os.path.exists(path):
     if not isinstance(data, dict):
         print("%s is not a JSON object; fix it first" % shown)
         sys.exit(1)
-    bak = path + ".ccdeck-bak"
+    bak = path + ".derot-bak"
     if not os.path.exists(bak):
         shutil.copy2(path, bak)
 else:
@@ -110,7 +110,7 @@ for ev in events:
         kept_groups.append(g)
     if mode == "install" and ev in installing:
         group = {"hooks": [{"type": "command",
-                            "command": "python3 ~/.ccdeck/hook.py " + ev,
+                            "command": "python3 ~/.derot/hook.py " + ev,
                             "timeout": 10}]}
         if ev in tool_events:
             group = {"matcher": "*", "hooks": group["hooks"]}
@@ -154,13 +154,13 @@ HOOKS_PRESENT_SCRIPT = r"""
 import hashlib, os, sys
 p = os.path.join(os.path.expanduser(sys.argv[1]), "settings.json")
 try:
-    with open(os.path.expanduser("~/.ccdeck/hook.py"), "rb") as f:
+    with open(os.path.expanduser("~/.derot/hook.py"), "rb") as f:
         hook = hashlib.sha256(f.read()).hexdigest()
 except Exception:
     hook = ""
 try:
     with open(p) as f:
-        wired = "/.ccdeck/hook.py" in f.read()
+        wired = "/.derot/hook.py" in f.read()
 except Exception:
     wired = False
 print("no hook.py" if not hook else "different hook.py" if hook != sys.argv[2]
@@ -237,10 +237,10 @@ def setup_host(cfg: Config, host: Host, remove: bool, out: Callable[[str], None]
 
         proc = remote.sh(host, UPLOAD_SCRIPT, input=hook_source())
         if proc.returncode != 0:
-            mark(False, f"couldn't install ~/.ccdeck/hook.py: {remote.error_text(proc)}",
+            mark(False, f"couldn't install ~/.derot/hook.py: {remote.error_text(proc)}",
                  remote.full_error(proc))
             return False
-        mark(True, "hook installed at ~/.ccdeck/hook.py")
+        mark(True, "hook installed at ~/.derot/hook.py")
     else:
         probe = remote.sh(host, "echo ok")
         if probe.returncode != 0:
@@ -266,7 +266,7 @@ def setup(cfg: Config, remove: bool = False, out: Callable[[str], None] = print)
     hosts = cfg.used_hosts()
     if not hosts:
         out("No sessions in the config yet, so there is nothing to set up.")
-        out(f"Add sessions to {cfg.path or 'the config'} and run `ccdeck setup` again.")
+        out(f"Add sessions to {cfg.path or 'the config'} and run `derot setup` again.")
         return 0
     all_ok = True
     for host in hosts:
@@ -275,5 +275,5 @@ def setup(cfg: Config, remove: bool = False, out: Callable[[str], None] = print)
     if all_ok:
         out("All done." if not remove else "Status hooks removed.")
     else:
-        out("Some steps failed (✗ above). Fix them and run `ccdeck setup` again.")
+        out("Some steps failed (✗ above). Fix them and run `derot setup` again.")
     return 0 if all_ok else 1

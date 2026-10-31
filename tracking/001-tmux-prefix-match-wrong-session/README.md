@@ -7,18 +7,18 @@
 | Priority | P0 |
 | Size | S |
 | Verified | confirmed (reproduced by reviewer, tmux 3.x) |
-| Source | ccdeck review, 2026-10-29 |
+| Source | derot review, 2026-10-29 |
 
 ## Problem
 
-tmux resolves `-t cc-<name>` by exact match, then **prefix**. With `api` stopped and `api-v2` running, `ccdeck stop api` killed `cc-api-v2`. `attach` has the same flaw. The TUI is only protected by status that can be up to one refresh (3 s) old; the CLI is exposed directly.
+tmux resolves `-t cc-<name>` by exact match, then **prefix**. With `api` stopped and `api-v2` running, `derot stop api` killed `cc-api-v2`. `attach` has the same flaw. The TUI is only protected by status that can be up to one refresh (3 s) old; the CLI is exposed directly.
 
 ## Where
 
-- `ccdeck/sessions.py:286` `stop()` — `kill-session -t cc-{name}`
-- `ccdeck/sessions.py:299` `attach_argv()`
-- `ccdeck/sessions.py:306` `attach()`
-- `ccdeck/sessions.py:244` `start_script()` — `set-option -t {target}`
+- `derot/sessions.py:286` `stop()` — `kill-session -t cc-{name}`
+- `derot/sessions.py:299` `attach_argv()`
+- `derot/sessions.py:306` `attach()`
+- `derot/sessions.py:244` `start_script()` — `set-option -t {target}`
 
 ## Proposed fix
 
@@ -26,7 +26,7 @@ Add one helper `tmux_target(name) -> "=cc-<name>:"` (the `=` forces exact match,
 
 ## Done when
 
-- [x] Test: with `cc-api-v2` running and `cc-api` absent, `ccdeck stop api` fails with "not running" and `cc-api-v2` is still alive.
+- [x] Test: with `cc-api-v2` running and `cc-api` absent, `derot stop api` fails with "not running" and `cc-api-v2` is still alive.
 - [x] Same for `attach`.
 - [x] Grep finds no remaining `-t", f"cc-` uses.
 

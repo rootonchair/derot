@@ -1,4 +1,4 @@
-# After approving a prompt from ccdeck, the row stays "needs you"
+# After approving a prompt from derot, the row stays "needs you"
 
 | Field | Value |
 |---|---|
@@ -15,11 +15,11 @@ No hook fires on approval, so a long approved tool showed "needs you" until it f
 
 ## Where
 
-`ccdeck/sessions.py` `MARK_ANSWERED` / `mark_answered()`; `ccdeck/tui.py` `key_worker`, `queue_input`, `input_sender`; `ccdeck/hook.py` `reconcile()`
+`derot/sessions.py` `MARK_ANSWERED` / `mark_answered()`; `derot/tui.py` `key_worker`, `queue_input`, `input_sender`; `derot/hook.py` `reconcile()`
 
 ## Fix
 
-When ccdeck sends a digit, or Enter / a digit while typing live, to a waiting session, a host-side script flips waiting → busy ("answered, working…") only if the state's `ts` is still the one the console saw. `reconcile()` now also catches a decline while busy. Approvals made while attached are not covered.
+When derot sends a digit, or Enter / a digit while typing live, to a waiting session, a host-side script flips waiting → busy ("answered, working…") only if the state's `ts` is still the one the console saw. `reconcile()` now also catches a decline while busy. Approvals made while attached are not covered.
 
 ## Done when
 

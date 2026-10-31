@@ -7,7 +7,7 @@
 | Priority | P3 |
 | Size | S |
 | Verified | reviewer read |
-| Source | ccdeck review, 2026-10-29 |
+| Source | derot review, 2026-10-29 |
 
 ## Problem
 
@@ -15,7 +15,7 @@ The form checks only local folders. A typo in a VM path is discovered only after
 
 ## Where
 
-- `ccdeck/forms.py:200` `SessionForm.action_save()`
+- `derot/forms.py:200` `SessionForm.action_save()`
 
 ## Proposed fix
 
@@ -33,7 +33,7 @@ _Add findings, decisions and links to commits here._
 
 **Verdict:** confirmed (the code does what the item says), but the impact is now lower. **Priority:** P2 → P3.
 
-- `SessionForm.action_save()` still checks only local folders. But "only discovered after attaching" no longer holds: the auto preview shows the screen of a running session, so `[ccdeck] folder not found: …` is visible as soon as you start it. The row does show `idle` (no hook fires), which is misleading.
+- `SessionForm.action_save()` still checks only local folders. But "only discovered after attaching" no longer holds: the auto preview shows the screen of a running session, so `[derot] folder not found: …` is visible as soon as you start it. The row does show `idle` (no hook fires), which is misleading.
 - **Better fix:** check at *start* instead of, or as well as, at save. In `start_script()`, add `[ -d <qpath dir> ] || { echo "folder not found: <dir>" >&2; exit 1; }` before `new-session`. `start()` then raises a clear `SessionError` toast, no dead pane is left behind, and it also catches folders deleted after saving. It works offline-safely because the start needs the host anyway. A save-time SSH check can be added later as a non-blocking toast.
 - **Missing:** the *local* check runs `os.path.expanduser(d)` on the raw input, so `$HOME/proj` (supported by 023 via `norm_path`) is rejected with "Folder not found on this Mac". Run `config.norm_path()` before the `isdir` check.
 

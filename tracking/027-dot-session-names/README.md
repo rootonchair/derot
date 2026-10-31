@@ -11,7 +11,7 @@
 
 ## Problem
 
-`NAME_RE` allowed `.foo`, but the hook ignores `CCDECK_SESSION` values starting with `.` and the dump skips dot-files.
+`NAME_RE` allowed `.foo`, but the hook ignores `DEROT_SESSION` values starting with `.` and the dump skips dot-files.
 
 ## Fix
 

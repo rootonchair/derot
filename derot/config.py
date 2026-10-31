@@ -1,4 +1,4 @@
-"""Load and validate ~/.config/ccdeck/config.yaml."""
+"""Load and validate ~/.config/derot/config.yaml."""
 
 from __future__ import annotations
 
@@ -106,10 +106,10 @@ class Config:
 
 
 def config_path() -> Path:
-    env = os.environ.get("CCDECK_CONFIG")
+    env = os.environ.get("DEROT_CONFIG")
     if env:
         return Path(env).expanduser()
-    return Path("~/.config/ccdeck/config.yaml").expanduser()
+    return Path("~/.config/derot/config.yaml").expanduser()
 
 
 def example_text() -> str:
@@ -233,7 +233,7 @@ def parse(data, path: Optional[Path] = None) -> Config:
 
 
 SAVED_HEADER = """\
-# ccdeck configuration (edited from the ccdeck console; comments are not kept).
+# derot configuration (edited from the derot console; comments are not kept).
 # Hosts: machines ("local" is this computer). Accounts: Claude Code config folders.
 # Sessions: a project folder + machine + account. See the README for every option.
 """
@@ -306,7 +306,7 @@ def load(path: Optional[Path] = None) -> Config:
     try:
         text = path.read_text()
     except FileNotFoundError:
-        raise ConfigError(f"config not found: {path} (run `ccdeck init`)")
+        raise ConfigError(f"config not found: {path} (run `derot init`)")
     try:
         data = yaml.safe_load(text)
     except yaml.YAMLError as e:

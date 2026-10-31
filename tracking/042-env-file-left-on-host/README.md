@@ -1,4 +1,4 @@
-# API keys stayed on hosts in ~/.ccdeck/env/<name>.sh
+# API keys stayed on hosts in ~/.derot/env/<name>.sh
 
 | Field | Value |
 |---|---|
@@ -15,7 +15,7 @@ The per-session env file (0600, may hold ANTHROPIC_API_KEY) was never deleted, s
 
 ## Where
 
-`ccdeck/sessions.py` `env_lines()`, `forget()`
+`derot/sessions.py` `env_lines()`, `forget()`
 
 ## Fix
 

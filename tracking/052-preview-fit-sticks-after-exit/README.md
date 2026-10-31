@@ -11,11 +11,11 @@
 
 ## Problem
 
-`fit()` uses `resize-window`, which sets the window's `window-size` to `manual`. Only `sessions.attach()` (ccdeck attach / enter) undoes it. After the console quits, a plain `tmux -L ccdeck attach -t cc-x` shows the window at the last preview size (for example 60x15), and it stays that way.
+`fit()` uses `resize-window`, which sets the window's `window-size` to `manual`. Only `sessions.attach()` (derot attach / enter) undoes it. After the console quits, a plain `tmux -L derot attach -t cc-x` shows the window at the last preview size (for example 60x15), and it stays that way.
 
 ## Where
 
-`ccdeck/sessions.py` `fit()` (line 683), `ccdeck/tui.py` `preview_worker()`
+`derot/sessions.py` `fit()` (line 683), `derot/tui.py` `preview_worker()`
 
 ## Fix (proposed)
 

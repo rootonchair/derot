@@ -1,7 +1,7 @@
 import pytest
 
-from ccdeck import cli, config
-from ccdeck.config import ConfigError
+from derot import cli, config
+from derot.config import ConfigError
 
 BASE = """
 hosts:
@@ -58,11 +58,11 @@ def test_invalid_config_cli_prints_one_line(env, capsys):
     env.write_config("sessions: [\n  - {name: a\n")
     assert cli.main(["ls"]) == 2
     err = capsys.readouterr().err.strip()
-    assert err.startswith("ccdeck: invalid YAML") and "\n" not in err
+    assert err.startswith("derot: invalid YAML") and "\n" not in err
 
     env.write_config("sessions: [{name: a, host: mars, dir: /x}]")
     assert cli.main(["ls"]) == 2
-    assert capsys.readouterr().err.strip() == "ccdeck: session 'a': unknown host 'mars'"
+    assert capsys.readouterr().err.strip() == "derot: session 'a': unknown host 'mars'"
 
 
 def test_init_writes_example_that_loads(env, capsys):

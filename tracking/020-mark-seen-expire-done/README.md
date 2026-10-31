@@ -7,7 +7,7 @@
 | Priority | P2 |
 | Size | S |
 | Verified | n/a |
-| Source | ccdeck review, 2026-10-29 |
+| Source | derot review, 2026-10-29 |
 
 ## Problem
 
@@ -15,8 +15,8 @@
 
 ## Where
 
-- `ccdeck/sessions.py` `mark_seen()`
-- `ccdeck/tui.py`
+- `derot/sessions.py` `mark_seen()`
+- `derot/tui.py`
 
 ## Proposed fix
 

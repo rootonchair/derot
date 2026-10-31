@@ -3,9 +3,9 @@ import os
 import subprocess
 import sys
 
-from ccdeck import cli, config, hook, log as log_mod, sessions
-from ccdeck.log import redact
-from ccdeck.tui import CCDeck
+from derot import cli, config, hook, log as log_mod, sessions
+from derot.log import redact
+from derot.tui import Derot
 
 from .conftest import needs_tmux
 
@@ -37,13 +37,13 @@ accounts: {{work: {{config_dir: ~/.cw, env: {{ANTHROPIC_API_KEY: sk-ant-secret1}
 sessions: [{{name: a, dir: ~/a, account: work}}]
 """)
     (env.home / "a").mkdir()
-    os.environ["CCDECK_DEBUG"] = "1"
+    os.environ["DEROT_DEBUG"] = "1"
     try:
         assert cli.main(["start", "a", "-d"]) == 0
         assert cli.main(["start", "a", "-d"]) == 1
         assert cli.main(["stop", "a"]) == 0
     finally:
-        del os.environ["CCDECK_DEBUG"]
+        del os.environ["DEROT_DEBUG"]
     text = log_mod.log_path().read_text()
     assert "starting a on local (account work" in text
     assert "a is already running" in text and "stopping a on local" in text
@@ -65,13 +65,13 @@ def test_unexpected_cli_error_logged_with_traceback(env, monkeypatch, capsys):
     assert cli.main(["ls"]) == 1
     assert "kaboom" in capsys.readouterr().err
     text = log_mod.log_path().read_text()
-    assert "unexpected error in `ccdeck ls`" in text and "Traceback" in text
+    assert "unexpected error in `derot ls`" in text and "Traceback" in text
 
 
 async def test_error_toasts_are_logged(env):
     env.write_config("sessions: []\n")
     log_mod.setup()
-    app = CCDeck(config.load(), poll_on_mount=False)
+    app = Derot(config.load(), poll_on_mount=False)
     async with app.run_test() as pilot:
         app.notify("hook setup on vm failed: python3 not found", severity="error")
         app.notify("just info")
@@ -82,15 +82,15 @@ async def test_error_toasts_are_logged(env):
 
 
 def test_hook_errors_go_to_hook_log_not_stdout(tmp_path):
-    state = tmp_path / ".ccdeck" / "state"
+    state = tmp_path / ".derot" / "state"
     state.mkdir(parents=True)
     state.chmod(0o500)  # read-only: writing the state file fails
     try:
-        env = dict(os.environ, HOME=str(tmp_path), CCDECK_SESSION="s1")
+        env = dict(os.environ, HOME=str(tmp_path), DEROT_SESSION="s1")
         p = subprocess.run([sys.executable, hook.__file__, "Stop"], input=json.dumps({}),
                            capture_output=True, text=True, env=env)
     finally:
         state.chmod(0o700)
     assert p.returncode == 0 and p.stdout == ""
-    errors = (tmp_path / ".ccdeck" / "hook-errors.log").read_text()
+    errors = (tmp_path / ".derot" / "hook-errors.log").read_text()
     assert "session=s1" in errors and "Traceback" in errors

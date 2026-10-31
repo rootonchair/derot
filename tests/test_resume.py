@@ -4,9 +4,9 @@ import json
 
 from textual.widgets import OptionList
 
-from ccdeck import cli, config, sessions
-from ccdeck.forms import ResumePicker
-from ccdeck.tui import CCDeck
+from derot import cli, config, sessions
+from derot.forms import ResumePicker
+from derot.tui import Derot
 
 from .conftest import needs_tmux, wait_for
 
@@ -73,7 +73,7 @@ async def test_picker_and_c_resume_this_sessions_conversation(env, capsys):
     talk(env, cfg, "add dark mode")
     capsys.readouterr()
 
-    app = CCDeck(config.load())
+    app = Derot(config.load())
     async with app.run_test(size=(150, 40)) as pilot:
         await pilot.pause(1)
         await pilot.press("R")
@@ -97,14 +97,14 @@ async def test_picker_and_c_resume_this_sessions_conversation(env, capsys):
     wait_for(lambda: state_of(cfg).session_id == first, what="resumed")
     cli.main(["stop", "shop"])
 
-    # a newer conversation in the same folder, started outside ccdeck: --continue would
+    # a newer conversation in the same folder, started outside derot: --continue would
     # pick it, but c resumes the one this session last used
     project = next((env.home / ".claude" / "projects").iterdir())
     (project / "outside.jsonl").write_text(
         json.dumps({"type": "user", "message": {"content": "started elsewhere"}}) + "\n")
     assert sessions.conversations(cfg, "shop")[0].id == "outside"
 
-    app = CCDeck(config.load())
+    app = Derot(config.load())
     async with app.run_test(size=(150, 40)) as pilot:
         await pilot.pause(1)
         await pilot.press("c")
@@ -133,7 +133,7 @@ def test_picker_handles_no_conversations(env, monkeypatch):
     env.write_config("sessions: [{name: a, dir: /x}]\n")
     cfg = config.load()
     results = []
-    app = CCDeck(cfg, poll_on_mount=False)
+    app = Derot(cfg, poll_on_mount=False)
 
     async def run():
         async with app.run_test(size=(150, 40)) as pilot:
@@ -152,7 +152,7 @@ def test_picker_handles_no_conversations(env, monkeypatch):
 def test_late_session_end_of_a_stopped_session_does_not_claim_the_new_one():
     """Stop then start quickly: start deletes the state file, then the old (killed) Claude's
     SessionEnd arrives. It used to claim the file, so the new session was ignored."""
-    from ccdeck import hook
+    from derot import hook
     state = {}
     assert not hook.owns(state, "SessionEnd", {"session_id": "old"})
     assert hook.owns(state, "SessionStart", {"session_id": "new"})

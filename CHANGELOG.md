@@ -14,6 +14,6 @@ First public version.
 - Forms for sessions, machines and accounts, with folder suggestions (also over SSH) and
   SSH targets from `~/.ssh/config`.
 - Desktop notifications when a session needs you (optionally when one finishes);
-  `ccdeck watch` for alerts without the console.
+  `derot watch` for alerts without the console.
 - CLI: `init`, `setup`, `ls`, `start` (`-c`, `--resume`), `history`, `attach`, `stop`,
   `watch`, `log`, `login`.

@@ -7,16 +7,16 @@
 | Priority | P1 |
 | Size | S |
 | Verified | likely |
-| Source | ccdeck review, 2026-10-29 |
+| Source | derot review, 2026-10-29 |
 
 ## Problem
 
-`CCDECK_SESSION` is exported in the pane, so any `claude` that the session itself spawns (sub-runs, scripts, `claude -p` in Bash) inherits it and its hooks write into the parent's state file.
+`DEROT_SESSION` is exported in the pane, so any `claude` that the session itself spawns (sub-runs, scripts, `claude -p` in Bash) inherits it and its hooks write into the parent's state file.
 
 ## Where
 
-- `ccdeck/sessions.py:224` `inner_script()`
-- `ccdeck/hook.py:137` `main()`
+- `derot/sessions.py:224` `inner_script()`
+- `derot/hook.py:137` `main()`
 
 ## Proposed fix
 

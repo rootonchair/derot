@@ -15,7 +15,7 @@ The merge script writes a temp file in the config folder and `os.replace()`s it 
 
 ## Where
 
-- `ccdeck/installer.py:58` and `:121` `MERGE_SCRIPT` (path / mkstemp / `os.replace`)
+- `derot/installer.py:58` and `:121` `MERGE_SCRIPT` (path / mkstemp / `os.replace`)
 
 ## Proposed fix
 
@@ -31,10 +31,10 @@ Repro: `tests/test_bughunt_new.py::test_033_setup_keeps_symlinked_settings` (xfa
 
 ## Review (2026-10-31)
 
-**Verdict:** confirmed. The test fails with `--runxfail` ("symlink replaced by a regular file") and also checks the 0644 mode. **Priority:** P2 → P3. It only affects users who manage `settings.json` with stow, chezmoi or a dotfiles repo, and `.ccdeck-bak` keeps the original contents.
+**Verdict:** confirmed. The test fails with `--runxfail` ("symlink replaced by a regular file") and also checks the 0644 mode. **Priority:** P2 → P3. It only affects users who manage `settings.json` with stow, chezmoi or a dotfiles repo, and `.derot-bak` keeps the original contents.
 
 - **Fix:** sound (`realpath`, a temp file in the real file's folder, `copymode`). Keeping the mode also helps when the file isn't a symlink, since mkstemp makes every rewritten file 0600.
-- **Side effect to note:** following the link writes `python3 ~/.ccdeck/hook.py …` into the user's *tracked* dotfile. On other machines that sync the dotfiles but don't have ccdeck, every Claude event runs a hook that fails, with a non-zero exit and a hook error shown in verbose mode. The fix should print a note when the target is a symlink ("hooks written to <real path>"), and `setup --remove` has to follow the link as well.
+- **Side effect to note:** following the link writes `python3 ~/.derot/hook.py …` into the user's *tracked* dotfile. On other machines that sync the dotfiles but don't have derot, every Claude event runs a hook that fails, with a non-zero exit and a hook error shown in verbose mode. The fix should print a note when the target is a symlink ("hooks written to <real path>"), and `setup --remove` has to follow the link as well.
 
 ## Fix (2026-10-31)
 

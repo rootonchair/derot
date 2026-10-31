@@ -7,7 +7,7 @@
 | Priority | P0 |
 | Size | S |
 | Verified | confirmed (reviewer read; easy to reproduce) |
-| Source | ccdeck review, 2026-10-29 |
+| Source | derot review, 2026-10-29 |
 
 ## Problem
 
@@ -15,11 +15,11 @@
 
 ## Where
 
-- `ccdeck/sessions.py:263` `start_script()`
+- `derot/sessions.py:263` `start_script()`
 
 ## Proposed fix
 
-Guard the whole script: `tmux -L ccdeck has-session -t '=cc-<name>' 2>/dev/null && { echo 'duplicate session: cc-<name>' >&2; exit 1; }` before the `rm`.
+Guard the whole script: `tmux -L derot has-session -t '=cc-<name>' 2>/dev/null && { echo 'duplicate session: cc-<name>' >&2; exit 1; }` before the `rm`.
 
 ## Done when
 

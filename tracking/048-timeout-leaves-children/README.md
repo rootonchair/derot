@@ -15,7 +15,7 @@
 
 ## Where
 
-`ccdeck/remote.py` `run()` (line 52), `_kill_group()` (line 94)
+`derot/remote.py` `run()` (line 52), `_kill_group()` (line 94)
 
 ## Fix
 

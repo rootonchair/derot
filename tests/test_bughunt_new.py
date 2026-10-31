@@ -11,10 +11,10 @@ import pytest
 import yaml
 from textual.widgets import DataTable
 
-from ccdeck import config, hook, installer, notify, remote, sessions
-from ccdeck.config import Notify
-from ccdeck.sessions import Status
-from ccdeck.tui import CCDeck
+from derot import config, hook, installer, notify, remote, sessions
+from derot.config import Notify
+from derot.sessions import Status
+from derot.tui import Derot
 
 from .conftest import needs_tmux, wait_for
 
@@ -74,7 +74,7 @@ async def test_030_keys_typed_after_switching_live_session_go_to_the_new_one(env
     monkeypatch.setattr(sessions, "fit", lambda *a: None)
     env.write_config("sessions: [{name: a, dir: /x}, {name: b, dir: /y}]\n")
     cfg = config.load()
-    app = CCDeck(cfg, poll_on_mount=False)
+    app = Derot(cfg, poll_on_mount=False)
     async with app.run_test(size=(150, 40)) as pilot:
         app.apply_poll(_running(cfg), {})
         table = app.query_one(DataTable)
@@ -103,7 +103,7 @@ async def test_031_paste_keeps_its_place_among_typed_text(env, monkeypatch):
                         lambda cfg, name, chunks: order.extend(chunks))
     env.write_config("sessions: [{name: a, dir: /x}]\n")
     cfg = config.load()
-    app = CCDeck(cfg, poll_on_mount=False)
+    app = Derot(cfg, poll_on_mount=False)
     async with app.run_test(size=(150, 40)):
         with app._input_lock:
             app._input = [("a", "text", "see "), ("a", "paste", "/tmp/log.txt"),
@@ -144,7 +144,7 @@ async def test_034_ctrl_p_reaches_the_session_while_typing_live(env, monkeypatch
     monkeypatch.setattr(sessions, "fit", lambda *a: None)
     env.write_config("sessions: [{name: a, dir: /x}]\n")
     cfg = config.load()
-    app = CCDeck(cfg, poll_on_mount=False)
+    app = Derot(cfg, poll_on_mount=False)
     async with app.run_test(size=(150, 40)) as pilot:
         app.apply_poll(_running(cfg), {})
         await pilot.pause()
@@ -242,13 +242,13 @@ def test_038_infinite_refresh_is_rejected_or_saves(env):
 # ------------------------------------------------------------------ 040 approved, still "needs you"
 
 
-def test_040_answering_from_ccdeck_clears_needs_you(env):
-    """No hook fires on approval: ccdeck flips waiting -> busy itself, but only if the state
+def test_040_answering_from_derot_clears_needs_you(env):
+    """No hook fires on approval: derot flips waiting -> busy itself, but only if the state
     is still the prompt it saw (a newer prompt is never overwritten)."""
     import json
     env.write_config("sessions: [{name: a, dir: /x}]\n")
     cfg = config.load()
-    path = env.home / ".ccdeck" / "state" / "a.json"
+    path = env.home / ".derot" / "state" / "a.json"
     path.parent.mkdir(parents=True)
     path.write_text(json.dumps({"state": "waiting", "message": "wants to use Bash: make",
                                 "ts": 100.25}))
@@ -280,7 +280,7 @@ async def test_040_digit_and_live_enter_mark_the_prompt_answered(env, monkeypatc
     monkeypatch.setattr(sessions, "fit", lambda *a: None)
     env.write_config("sessions: [{name: a, dir: /x}]\n")
     cfg = config.load()
-    app = CCDeck(cfg, poll_on_mount=False)
+    app = Derot(cfg, poll_on_mount=False)
     app.action_refresh = lambda: None  # keep the statuses below (no real polling)
     async with app.run_test(size=(150, 40)) as pilot:
         app.apply_poll([_st(cfg, "waiting", 42.5)], {})
@@ -302,7 +302,7 @@ async def test_040_digit_and_live_enter_mark_the_prompt_answered(env, monkeypatc
 
 
 def test_009_hand_edited_account_folder_gets_hooks():
-    from ccdeck.forms import new_pairs
+    from derot.forms import new_pairs
     old = config.parse(yaml.safe_load(
         "accounts: {work: {config_dir: ~/.claude-work}}\n"
         "sessions: [{name: a, dir: /x, account: work}]"))
@@ -334,14 +334,14 @@ def test_009_running_without_status_says_so():
 @pytest.mark.parametrize("shell", ["/bin/tcsh", "/bin/zsh", "/bin/bash"])
 def test_032_sessions_start_with_any_login_shell(env, monkeypatch, shell, capsys):
     import json
-    from ccdeck import cli
+    from derot import cli
     if not os.path.exists(shell):
         pytest.skip(f"{shell} not installed")
     monkeypatch.setenv("SHELL", shell)
     (env.home / "my proj").mkdir()  # a space in the path, too
     env.write_config(f"""
 hosts: {{local: {{claude: "{env.claude}"}}}}
-accounts: {{work: {{config_dir: ~/.claude-work, env: {{CCDECK_TEST_VAR: "a b"}}}}}}
+accounts: {{work: {{config_dir: ~/.claude-work, env: {{DEROT_TEST_VAR: "a b"}}}}}}
 sessions: [{{name: shop, dir: "~/my proj", account: work}}]
 """)
     # setup's claude check runs through the login shell too
@@ -362,7 +362,7 @@ def test_045_starting_a_session_sets_up_missing_hooks(env, capsys):
     """A new account whose hook setup never finished (console quit mid-setup): starting its
     session sets the hooks up first, so it gets a status instead of staying idle."""
     import json
-    from ccdeck import cli
+    from derot import cli
     (env.home / "proj").mkdir()
     env.write_config(f"""
 hosts: {{local: {{claude: "{env.claude}"}}}}
@@ -373,7 +373,7 @@ sessions: [{{name: p, dir: ~/proj, account: fresh}}]
     assert not installer.hooks_present(cfg.hosts["local"], "~/.claude-fresh")
     assert cli.main(["start", "p", "-d"]) == 0
     assert installer.hooks_present(cfg.hosts["local"], "~/.claude-fresh")
-    state = env.home / ".ccdeck" / "state" / "p.json"
+    state = env.home / ".derot" / "state" / "p.json"
     wait_for(state.exists, what="a status from the hooks")
     assert json.loads(state.read_text())["event"] == "SessionStart"
     # already set up: the next start doesn't run setup again
@@ -422,7 +422,7 @@ def test_046_interrupted_upload_never_leaves_a_cut_off_hook(env):
     time.sleep(0.5)
     os.killpg(child.pid, signal.SIGKILL)
     child.wait()
-    hook_py = env.home / ".ccdeck" / "hook.py"
+    hook_py = env.home / ".derot" / "hook.py"
     assert not hook_py.exists() or hook_py.read_text() == src
 
 
@@ -431,25 +431,25 @@ def test_046_cut_off_hook_is_repaired_before_start(env):
     """A hook.py cut off by an earlier interrupted setup counted as installed, so every
     hook call failed and the session stayed idle. The check before a start now notices."""
     cfg = _set_up_local(env)
-    hook_py = env.home / ".ccdeck" / "hook.py"
+    hook_py = env.home / ".derot" / "hook.py"
     src = hook_py.read_text()
     hook_py.write_text(src[: len(src) // 2])
     assert not installer.hooks_present(cfg.hosts["local"], "~/.claude")
     assert installer.ensure_hooks(cfg, cfg.hosts["local"], "~/.claude")
     assert hook_py.read_text() == src
     sessions.start(cfg, "p")
-    wait_for((env.home / ".ccdeck" / "state" / "p.json").exists, what="a status")
+    wait_for((env.home / ".derot" / "state" / "p.json").exists, what="a status")
 
 
 # ------------------------------------------------------------------ 047 old hook.py on hosts
 
 
 def test_047_older_hook_is_replaced_before_start(env, monkeypatch):
-    """A host set up by an older ccdeck kept its old hook (old status logic) forever,
-    unless you re-ran `ccdeck setup`. Starting a session now updates it."""
-    from ccdeck import cli
+    """A host set up by an older derot kept its old hook (old status logic) forever,
+    unless you re-ran `derot setup`. Starting a session now updates it."""
+    from derot import cli
     cfg = _set_up_local(env)
-    hook_py = env.home / ".ccdeck" / "hook.py"
+    hook_py = env.home / ".derot" / "hook.py"
     hook_py.write_text(installer.hook_source().replace("def dump():", "def dump_old():"))
     assert not installer.hooks_present(cfg.hosts["local"], "~/.claude")
     calls = []
@@ -501,15 +501,15 @@ sessions: [{{name: p, dir: ~/proj, account: api}}]
     cfg = config.load()
     with pytest.raises(sessions.SessionError, match="no space"):
         sessions.start(cfg, "p")
-    assert not (env.home / ".ccdeck" / "env" / "p.sh").exists()
+    assert not (env.home / ".derot" / "env" / "p.sh").exists()
 
 
 # ------------------------------------------------------------------ 050 watch errors not logged
 
 
 def test_050_watch_logs_poll_failures(env, monkeypatch):
-    """`ccdeck watch` (often a background service) only printed poll errors to stderr."""
-    from ccdeck import cli, log as log_mod
+    """`derot watch` (often a background service) only printed poll errors to stderr."""
+    from derot import cli, log as log_mod
     env.write_config("sessions: [{name: p, dir: /tmp}]\n")
 
     def boom(cfg):

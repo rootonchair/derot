@@ -15,7 +15,7 @@
 
 ## Where
 
-`ccdeck/sessions.py` `tmux_key()`
+`derot/sessions.py` `tmux_key()`
 
 ## Fix
 

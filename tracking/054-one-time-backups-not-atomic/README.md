@@ -11,11 +11,11 @@
 
 ## Problem
 
-`config.yaml.bak` and `settings.json.ccdeck-bak` are written in place, and only if they don't exist yet. If that write is interrupted, the cut-off backup is kept and never rewritten. The real files themselves are written atomically.
+`config.yaml.bak` and `settings.json.derot-bak` are written in place, and only if they don't exist yet. If that write is interrupted, the cut-off backup is kept and never rewritten. The real files themselves are written atomically.
 
 ## Where
 
-`ccdeck/config.py` `save()` (line 287), `ccdeck/installer.py` `MERGE_SCRIPT` (line 81)
+`derot/config.py` `save()` (line 287), `derot/installer.py` `MERGE_SCRIPT` (line 81)
 
 ## Fix (proposed)
 

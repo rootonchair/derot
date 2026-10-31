@@ -7,15 +7,15 @@
 | Priority | P1 |
 | Size | S |
 | Verified | reviewer read |
-| Source | ccdeck review, 2026-10-29 |
+| Source | derot review, 2026-10-29 |
 
 ## Problem
 
-Only `~/.claude` and `$HOME/.claude` count as default. An absolute path makes ccdeck export `CLAUDE_CONFIG_DIR`, and on macOS Claude Code then likely looks logged out (keychain entry is tied to the default).
+Only `~/.claude` and `$HOME/.claude` count as default. An absolute path makes derot export `CLAUDE_CONFIG_DIR`, and on macOS Claude Code then likely looks logged out (keychain entry is tied to the default).
 
 ## Where
 
-- `ccdeck/config.py:46` `Account.is_default_dir`
+- `derot/config.py:46` `Account.is_default_dir`
 
 ## Proposed fix
 

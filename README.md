@@ -1,14 +1,15 @@
-# ccdeck
+# derot
 
-[![tests](https://github.com/rootonchair/ccdeck/actions/workflows/tests.yml/badge.svg)](https://github.com/rootonchair/ccdeck/actions/workflows/tests.yml)
+[![tests](https://github.com/rootonchair/derot/actions/workflows/tests.yml/badge.svg)](https://github.com/rootonchair/derot/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-One terminal console for every Claude Code session you run: across **projects**, **Claude
-accounts** and **machines** (this computer plus any machine you can SSH into), in one list.
+**Stop Claude Code sessions rotting in forgotten terminals.** derot is one terminal console
+for every Claude Code session you run: across **projects**, **Claude accounts** and
+**machines** (this computer plus any machine you can SSH into), in one list.
 See which sessions need you, watch Claude work, and type into any of them without leaving
 the console.
 
-![ccdeck: a session needs approval, its live screen on the right](docs/screenshots/overview.svg)
+![derot: a session needs approval, its live screen on the right](docs/screenshots/overview.svg)
 
 ## Features
 
@@ -43,16 +44,16 @@ and the SSH target field lists hosts from your `~/.ssh/config` and `known_hosts`
 ![add machine form with SSH targets](docs/screenshots/add-machine.svg)
 
 **Sessions outlive the console.** Every session runs in tmux, so it keeps going when you
-quit ccdeck, close the laptop lid or lose the SSH connection.
+quit derot, close the laptop lid or lose the SSH connection.
 
 ## How it works
 
 - **tmux**: each session is a tmux session `cc-<name>` on a private tmux server
-  (`tmux -L ccdeck`), so it survives detaching and never touches your own tmux setup.
+  (`tmux -L derot`), so it survives detaching and never touches your own tmux setup.
 - **SSH**: remote hosts are reached with plain `ssh` (shared ControlMaster connection, one
   call per host per refresh). Nothing runs on the VM besides tmux, python3 and Claude Code.
-- **Hooks**: `ccdeck setup` installs a tiny stdlib-only script, `~/.ccdeck/hook.py`, and
-  registers it as a Claude Code hook. It writes `~/.ccdeck/state/<name>.json` on each event
+- **Hooks**: `derot setup` installs a tiny stdlib-only script, `~/.derot/hook.py`, and
+  registers it as a Claude Code hook. It writes `~/.derot/state/<name>.json` on each event
   (prompt submitted, tool use, permission prompt, stop), so status is accurate without screen
   scraping.
 - **Accounts**: each account is a Claude Code config folder passed via `CLAUDE_CONFIG_DIR`,
@@ -66,7 +67,7 @@ Developed and used on macOS; the Linux code paths (tmux, `notify-send` notificat
 covered by CI but haven't seen much real use yet.
 
 ```sh
-pipx install git+https://github.com/rootonchair/ccdeck     # or: uv tool install git+https://github.com/rootonchair/ccdeck
+pipx install git+https://github.com/rootonchair/derot     # or: uv tool install git+https://github.com/rootonchair/derot
 ```
 
 On macOS, `brew install tmux pipx` first. Each SSH machine needs `tmux`, `python3`, Claude
@@ -74,8 +75,8 @@ Code, and key-based SSH access (`ssh my-vm true` works without a password prompt
 
 ## Setup
 
-1. Run `ccdeck`. On first run it creates `~/.config/ccdeck/config.yaml` (override with
-   `CCDECK_CONFIG`) and opens the console.
+1. Run `derot`. On first run it creates `~/.config/derot/config.yaml` (override with
+   `DEROT_CONFIG`) and opens the console.
 2. Press `n` to add a session: pick a machine, a project folder (matching folders are listed
    as you type) and a Claude account. Choose **+ add a machine (SSH)…** or **+ add an account…** in the dropdowns
    to create those on the spot. Saving installs the status hooks for any new machine/account
@@ -89,8 +90,8 @@ prefer it (`E` opens it in `$EDITOR`); saving from the console rewrites it witho
 and keeps your original as `config.yaml.bak`.
 
 A VM needs tmux, python3, Claude Code, and key-based SSH (`ssh my-vm true` works without a
-password prompt). From the command line, the same setup is `ccdeck login ACCOUNT [--host H]`
-and `ccdeck setup`.
+password prompt). From the command line, the same setup is `derot login ACCOUNT [--host H]`
+and `derot setup`.
 
 <details><summary>Config file reference</summary>
 
@@ -129,50 +130,50 @@ prompt option. Go full screen (`f`) only for longer work.
 | `f` | Full screen: Claude's own UI in this terminal (attach; starts it first if stopped). `Ctrl-q` comes back |
 | `1`–`9` | When a session needs you: pick that numbered option in its prompt |
 | `p` | Preview: switch between auto (screen while running, conversation once stopped), conversation (from Claude's transcript) and screen |
-| `s` | Start fresh in the background and stay in ccdeck (watch it in the preview, Enter to type) |
+| `s` | Start fresh in the background and stay in derot (watch it in the preview, Enter to type) |
 | `c` | Continue this session's last conversation (falls back to the folder's newest, `claude --continue`), in the background like `s` |
 | `R` | Resume: pick any past conversation of the session's folder and account (title, age, last prompt), then start it with `claude --resume` |
 | `x` `x` | Stop (press twice within 3 s) |
 | `n` | New session (form) |
 | `e` | Edit the selected session (form) |
-| `d` | Remove the selected session from ccdeck |
+| `d` | Remove the selected session from derot |
 | `l` | Log in to the selected session's account (`/login`) |
 | `E` | Open the config file in `$VISUAL`/`$EDITOR`, reload on exit |
 | `u` | Run setup (install hooks) |
 | `r` | Refresh now |
 | `q` | Quit (sessions keep running) |
 
-Inside a session, `Ctrl-q` (configurable with `detach_key`) returns to ccdeck. `Ctrl-b d`
+Inside a session, `Ctrl-q` (configurable with `detach_key`) returns to derot. `Ctrl-b d`
 always works too. Coming back from a finished session marks it as seen (done → idle).
 
 ## Command line
 
 ```
-ccdeck                      open the console (creates the config on first run)
-ccdeck init                 create the config file
-ccdeck setup [--remove]     install / remove status hooks on every host+account
-ccdeck ls                   print a status table
-ccdeck start NAME [-c] [-r ID] [-d]   start (-c continue last conversation, -r resume that
+derot                      open the console (creates the config on first run)
+derot init                 create the config file
+derot setup [--remove]     install / remove status hooks on every host+account
+derot ls                   print a status table
+derot start NAME [-c] [-r ID] [-d]   start (-c continue last conversation, -r resume that
                                       conversation, -d don't attach)
-ccdeck history NAME [-n N]            list past conversations (ids for -r)
-ccdeck attach NAME          attach, then mark seen
-ccdeck stop NAME
-ccdeck watch                poll + notifications only, for when the console is closed
-ccdeck login ACCOUNT [--host H]
-ccdeck log [-f] [-n N]       show the log, for tracing errors
+derot history NAME [-n N]            list past conversations (ids for -r)
+derot attach NAME          attach, then mark seen
+derot stop NAME
+derot watch                poll + notifications only, for when the console is closed
+derot login ACCOUNT [--host H]
+derot log [-f] [-n N]       show the log, for tracing errors
 ```
 
-`ccdeck watch` gives you desktop alerts without keeping the console open, e.g. in a spare
+`derot watch` gives you desktop alerts without keeping the console open, e.g. in a spare
 terminal tab or a login item.
 
 ## Troubleshooting
 
-Start with the log: **`ccdeck log`** shows the last lines of `~/.ccdeck/ccdeck.log`
-(`ccdeck log -f` follows it live). It records every action, every failure with the full error
+Start with the log: **`derot log`** shows the last lines of `~/.derot/derot.log`
+(`derot log -f` follows it live). It records every action, every failure with the full error
 output, and tracebacks for anything unexpected. Error toasts in the console are logged too, so
 a message that disappeared can still be read there. For even more detail, run with
-`CCDECK_DEBUG=1 ccdeck` to log every command ccdeck runs (API keys are masked). Errors inside
-the status hook itself go to `~/.ccdeck/hook-errors.log` on that machine.
+`DEROT_DEBUG=1 derot` to log every command derot runs (API keys are masked). Errors inside
+the status hook itself go to `~/.derot/hook-errors.log` on that machine.
 
 - **`claude` not found**: sessions run in your login shell, but if it still isn't found set
   `claude:` to the full path for that host (`which claude` on that machine).
@@ -180,13 +181,13 @@ the status hook itself go to `~/.ccdeck/hook-errors.log` on that machine.
   before the session, such as "trust this folder?" or a new account's login. Press Enter (or
   click the right panel) and answer it. If nothing is there, press `u` to reinstall the hooks.
 - **Session stuck on idle**: status hooks are missing for that account/host. Starting a
-  session sets them up; otherwise press `u` (or run `ccdeck setup`).
+  session sets them up; otherwise press `u` (or run `derot setup`).
 - **Two accounts log each other out on the Mac**: Claude Code stores logins in the macOS
   keychain, so two subscription logins can clash. Give one account an API key via its `env`
   (`ANTHROPIC_API_KEY: ...`).
 - **Detach key conflicts** with an app you use inside sessions: change `detach_key` (e.g.
   `C-]`). `Ctrl-b d` always works.
-- **Sessions started outside ccdeck don't appear**: ccdeck only tracks sessions it starts.
+- **Sessions started outside derot don't appear**: derot only tracks sessions it starts.
   Add them with `n`, exit the old `claude`, then press `c` to continue the same conversation.
 
 ## Known issues
@@ -196,9 +197,9 @@ See [tracking/](tracking/README.md) for everything open. The main ones:
 - Quitting waits silently for background work to finish (up to a minute while hooks are
   being set up).
 - After the console quits, a session stays at the preview's size if you attach with plain
-  tmux instead of ccdeck.
+  tmux instead of derot.
 - An SSH machine whose login shell is csh/tcsh isn't supported yet.
-- Claude Code features that need a hook ccdeck doesn't use (for example compaction) are
+- Claude Code features that need a hook derot doesn't use (for example compaction) are
   handled from Claude Code's documentation and haven't been seen live.
 
 ## Development
@@ -206,7 +207,7 @@ See [tracking/](tracking/README.md) for everything open. The main ones:
 ```sh
 uv venv && uv pip install -e '.[test]'
 .venv/bin/pytest          # needs tmux; uses a fake `claude` and fake `ssh`, no VM needed
-.venv/bin/pyflakes ccdeck tests scripts
+.venv/bin/pyflakes derot tests scripts
 .venv/bin/python scripts/screenshots.py   # regenerate docs/screenshots from demo data
 ```
 
@@ -214,5 +215,5 @@ uv venv && uv pip install -e '.[test]'
 
 [MIT](LICENSE).
 
-ccdeck is an independent project. It is not affiliated with, endorsed by or sponsored by
+derot is an independent project. It is not affiliated with, endorsed by or sponsored by
 Anthropic. Claude and Claude Code are trademarks of Anthropic.

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""ccdeck status hook for Claude Code.
+"""derot status hook for Claude Code.
 
-Installed to ~/.ccdeck/hook.py and called as `python3 ~/.ccdeck/hook.py <EventName>` with
-the hook JSON payload on stdin. Writes ~/.ccdeck/state/<CCDECK_SESSION>.json.
+Installed to ~/.derot/hook.py and called as `python3 ~/.derot/hook.py <EventName>` with
+the hook JSON payload on stdin. Writes ~/.derot/state/<DEROT_SESSION>.json.
 
 Rules: stdlib only, never write to stdout, always exit 0.
 `hook.py --dump` is used by the poller instead: it prints every state file to stdout.
@@ -14,8 +14,8 @@ import sys
 import tempfile
 import time
 
-STATE_DIR = os.path.join(os.path.expanduser("~"), ".ccdeck", "state")
-ERROR_LOG = os.path.join(os.path.expanduser("~"), ".ccdeck", "hook-errors.log")
+STATE_DIR = os.path.join(os.path.expanduser("~"), ".derot", "state")
+ERROR_LOG = os.path.join(os.path.expanduser("~"), ".derot", "hook-errors.log")
 ERROR_LOG_MAX = 256 * 1024
 TAIL_BYTES = 200 * 1024
 FIELDS = ("session", "state", "event", "ts", "cwd", "prompt", "message", "session_id",
@@ -115,7 +115,7 @@ def tool_summary(payload):
 
 
 def owns(state, event, payload):
-    """False for events from a different Claude process that inherited CCDECK_SESSION.
+    """False for events from a different Claude process that inherited DEROT_SESSION.
 
     The first SessionStart in a fresh state file claims the session. Later, only the same
     session_id may update it, except /clear, /resume and compaction, which switch the id.
@@ -280,7 +280,7 @@ def main():
     if sys.argv[1:2] == ["--dump"]:
         dump()
         return
-    session = os.environ.get("CCDECK_SESSION")
+    session = os.environ.get("DEROT_SESSION")
     if not session or "/" in session or session.startswith("."):
         return
     event = sys.argv[1] if len(sys.argv) > 1 else ""
@@ -312,14 +312,14 @@ def main():
 
 
 def log_error():
-    """Append the current traceback to ~/.ccdeck/hook-errors.log (never stdout)."""
+    """Append the current traceback to ~/.derot/hook-errors.log (never stdout)."""
     try:
         import traceback
         if os.path.exists(ERROR_LOG) and os.path.getsize(ERROR_LOG) > ERROR_LOG_MAX:
             os.replace(ERROR_LOG, ERROR_LOG + ".1")
         with open(ERROR_LOG, "a") as f:
             f.write("%s session=%s event=%s\n%s\n" % (
-                time.strftime("%Y-%m-%d %H:%M:%S"), os.environ.get("CCDECK_SESSION"),
+                time.strftime("%Y-%m-%d %H:%M:%S"), os.environ.get("DEROT_SESSION"),
                 sys.argv[1:], traceback.format_exc()))
     except Exception:
         pass

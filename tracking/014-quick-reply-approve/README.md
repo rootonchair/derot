@@ -7,7 +7,7 @@
 | Priority | P1 |
 | Size | S |
 | Verified | n/a |
-| Source | ccdeck review, 2026-10-29 |
+| Source | derot review, 2026-10-29 |
 
 ## Problem
 
@@ -15,8 +15,8 @@ Clearing a `needs you` row requires attach → answer → Ctrl-q.
 
 ## Where
 
-- new action in `ccdeck/tui.py`
-- `ccdeck/sessions.py` new `send_keys()`
+- new action in `derot/tui.py`
+- `derot/sessions.py` new `send_keys()`
 
 ## Proposed fix
 

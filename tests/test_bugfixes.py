@@ -8,9 +8,9 @@ import time
 
 import pytest
 
-from ccdeck import cli, config, hook, notify, sessions
-from ccdeck.config import Notify
-from ccdeck.sessions import Status
+from derot import cli, config, hook, notify, sessions
+from derot.config import Notify
+from derot.sessions import Status
 
 from .conftest import needs_tmux, wait_for
 
@@ -138,17 +138,17 @@ def test_005_config_is_private(env):
 # ---------------------------------------------------------------- 006
 
 def run_hook(home, event, payload):
-    env = dict(os.environ, HOME=str(home), CCDECK_SESSION="s")
+    env = dict(os.environ, HOME=str(home), DEROT_SESSION="s")
     subprocess.run([sys.executable, hook.__file__, event], input=json.dumps(payload),
                    capture_output=True, text=True, env=env, check=True)
-    return json.loads((home / ".ccdeck" / "state" / "s.json").read_text())
+    return json.loads((home / ".derot" / "state" / "s.json").read_text())
 
 
 def test_006_child_claude_does_not_overwrite_parent(tmp_path):
     st = run_hook(tmp_path, "SessionStart", {"session_id": "parent", "source": "startup"})
     assert st["session_id"] == "parent"
     run_hook(tmp_path, "UserPromptSubmit", {"session_id": "parent", "prompt": "build it"})
-    # a `claude -p` started from inside the session inherits CCDECK_SESSION:
+    # a `claude -p` started from inside the session inherits DEROT_SESSION:
     st = run_hook(tmp_path, "SessionStart", {"session_id": "child", "source": "startup"})
     st = run_hook(tmp_path, "Stop", {"session_id": "child", "last_assistant_message": "x"})
     assert (st["session_id"], st["state"], st["prompt"]) == ("parent", "busy", "build it")
@@ -195,9 +195,9 @@ def test_007_console_leaves_desktop_alerts_to_watch(env, monkeypatch):
     sent, toasts = [], []
     monkeypatch.setattr(notify, "send", lambda t, b, s="": sent.append(t))
     cfg = two_session_cfg()
-    # another `ccdeck watch` holds the lock (a real separate process)
+    # another `derot watch` holds the lock (a real separate process)
     holder = subprocess.Popen(
-        [sys.executable, "-c", "import sys, time; from ccdeck import notify; "
+        [sys.executable, "-c", "import sys, time; from derot import notify; "
          "assert notify.acquire_watch_lock(); print('locked', flush=True); time.sleep(60)"],
         stdout=subprocess.PIPE, text=True)
     try:
@@ -326,10 +326,10 @@ def test_027_names_cannot_start_with_dot():
 
 @needs_tmux
 async def test_028_preview_refits_after_outside_resize(env, ready, capsys):
-    from ccdeck.tui import CCDeck
+    from derot.tui import Derot
     ready("  - {name: a, dir: ~/p}")
     cli.main(["start", "a", "-d"])
-    app = CCDeck(config.load())
+    app = Derot(config.load())
     app.preview_mode = "screen"
 
     def size():

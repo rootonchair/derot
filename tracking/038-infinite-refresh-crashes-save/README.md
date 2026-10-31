@@ -15,9 +15,9 @@
 
 ## Where
 
-- `ccdeck/config.py:224` refresh parsing
-- `ccdeck/config.py:271` `to_dict()`
-- `ccdeck/tui.py:764` `save_config()`
+- `derot/config.py:224` refresh parsing
+- `derot/config.py:271` `to_dict()`
+- `derot/tui.py:764` `save_config()`
 
 ## Proposed fix
 

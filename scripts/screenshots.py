@@ -17,14 +17,14 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "docs" / "screenshots"
 SIZE = (132, 34)
 
-home = tempfile.mkdtemp(prefix="ccdeck-shots-")
+home = tempfile.mkdtemp(prefix="derot-shots-")
 os.environ["HOME"] = home
-os.environ["CCDECK_CONFIG"] = os.path.join(home, "config.yaml")
+os.environ["DEROT_CONFIG"] = os.path.join(home, "config.yaml")
 sys.path.insert(0, str(ROOT))
 
-from ccdeck import config, forms, sessions  # noqa: E402
-from ccdeck.sessions import Screen, Status  # noqa: E402
-from ccdeck.tui import CCDeck  # noqa: E402
+from derot import config, forms, sessions  # noqa: E402
+from derot.sessions import Screen, Status  # noqa: E402
+from derot.tui import Derot  # noqa: E402
 
 CONFIG = """
 hosts:
@@ -142,7 +142,7 @@ def patch(typing=False):
 async def shoot(name, setup, typing=False):
     patch(typing)
     cfg = config.load()
-    app = CCDeck(cfg, poll_on_mount=False)
+    app = Derot(cfg, poll_on_mount=False)
     app.action_refresh = lambda: None
     async with app.run_test(size=SIZE) as pilot:
         app.apply_poll(statuses(cfg, time.time()), {})
@@ -153,7 +153,7 @@ async def shoot(name, setup, typing=False):
             app.refresh_preview()
         await pilot.pause(0.8)
         OUT.mkdir(parents=True, exist_ok=True)
-        (OUT / f"{name}.svg").write_text(app.export_screenshot(title="ccdeck"))
+        (OUT / f"{name}.svg").write_text(app.export_screenshot(title="derot"))
         print("wrote", OUT / f"{name}.svg")
 
 
@@ -181,19 +181,19 @@ async def new_session(app, pilot):
 
 
 async def resume(app, pilot):
-    from ccdeck.forms import ResumePicker
+    from derot.forms import ResumePicker
     app.push_screen(ResumePicker(app.cfg, "api-server", "a1"))
 
 
 async def add_machine(app, pilot):
-    from ccdeck.forms import HostForm
+    from derot.forms import HostForm
     app.push_screen(HostForm(app.cfg))
     await pilot.pause(0.3)
     await pilot.press(*"gpu")
 
 
 async def main():
-    Path(os.environ["CCDECK_CONFIG"]).write_text(CONFIG)
+    Path(os.environ["DEROT_CONFIG"]).write_text(CONFIG)
     await shoot("overview", overview)
     await shoot("working", working)
     await shoot("typing", typing, typing=True)

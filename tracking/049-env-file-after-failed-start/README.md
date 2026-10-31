@@ -11,11 +11,11 @@
 
 ## Problem
 
-Since 042, only the pane deletes `~/.ccdeck/env/<name>.sh`. If writing the run file or `tmux new-session` failed after the env file was written, no pane ever ran. The secrets then stayed on disk until the next successful start or a remove.
+Since 042, only the pane deletes `~/.derot/env/<name>.sh`. If writing the run file or `tmux new-session` failed after the env file was written, no pane ever ran. The secrets then stayed on disk until the next successful start or a remove.
 
 ## Where
 
-`ccdeck/sessions.py` `start_script()` (line 374)
+`derot/sessions.py` `start_script()` (line 374)
 
 ## Fix
 

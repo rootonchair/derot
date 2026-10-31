@@ -15,7 +15,7 @@
 
 ## Where
 
-- `ccdeck/hook.py:133` `apply()` SessionStart branch
+- `derot/hook.py:133` `apply()` SessionStart branch
 
 ## Proposed fix
 

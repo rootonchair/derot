@@ -58,17 +58,17 @@ def send(title: str, body: str, sound: str = "") -> None:
 
 
 def watch_lock() -> Path:
-    return Path("~/.ccdeck/watch.pid").expanduser()
+    return Path("~/.derot/watch.pid").expanduser()
 
 
-# The lock is an flock on ~/.ccdeck/watch.pid, held for the life of `ccdeck watch`: taking
+# The lock is an flock on ~/.derot/watch.pid, held for the life of `derot watch`: taking
 # it is atomic, and the kernel drops it however the process ends (even SIGKILL), so a
 # crashed watch never leaves alerts silently deferred to nobody.
 _watch_fd: Optional[int] = None
 
 
 def watch_running() -> bool:
-    """True if another process holds the `ccdeck watch` lock."""
+    """True if another process holds the `derot watch` lock."""
     if _watch_fd is not None:
         return False  # that's us
     try:
@@ -85,7 +85,7 @@ def watch_running() -> bool:
 
 
 def acquire_watch_lock() -> bool:
-    """Become the one desktop notifier. False if another `ccdeck watch` is running."""
+    """Become the one desktop notifier. False if another `derot watch` is running."""
     global _watch_fd
     if _watch_fd is not None:
         return True
@@ -116,7 +116,7 @@ class Notifier:
     - no alert for a session someone is attached to (they're looking at it)
     - `offline` doesn't count as a state: when a host comes back, sessions are compared with
       what they were before it dropped, so nothing is re-announced
-    - with defer_to_watch (the console), desktop alerts are left to a running `ccdeck watch`
+    - with defer_to_watch (the console), desktop alerts are left to a running `derot watch`
       so they aren't sent twice; the console still shows its toast
     """
 
@@ -150,7 +150,7 @@ class Notifier:
                 if alert:
                     sent.append(alert)
                     log.info("alert: %s: %s%s", alert[0], alert[1],
-                             "" if desktop else " (desktop alert left to ccdeck watch)")
+                             "" if desktop else " (desktop alert left to derot watch)")
                     if desktop:
                         send(alert[0], alert[1], self.settings.sound)
                     if self.toast:

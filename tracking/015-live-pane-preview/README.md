@@ -7,7 +7,7 @@
 | Priority | P1 |
 | Size | S–M |
 | Verified | n/a |
-| Source | ccdeck review, 2026-10-29 |
+| Source | derot review, 2026-10-29 |
 
 ## Problem
 
@@ -15,7 +15,7 @@ You can't see what Claude is asking without attaching.
 
 ## Where
 
-- `ccdeck/tui.py` detail panel
+- `derot/tui.py` detail panel
 
 ## Proposed fix
 

@@ -6,7 +6,7 @@ import sys
 
 import pytest
 
-from ccdeck import cli, config, remote, sessions
+from derot import cli, config, remote, sessions
 
 from .conftest import needs_tmux, wait_for
 
@@ -19,7 +19,7 @@ hosts:
   dead: {ssh: deadvm}
 accounts:
   personal: {config_dir: ~/.claude}
-  work: {config_dir: ~/.claude-work, env: {CCDECK_TEST_VAR: hello world, "bad-key": x}}
+  work: {config_dir: ~/.claude-work, env: {DEROT_TEST_VAR: hello world, "bad-key": x}}
 sessions:
   - {name: shop, host: local, dir: ~/proj/shop, account: personal, note: payments}
   - {name: api, host: vm, dir: ~/proj/api, account: work}
@@ -74,14 +74,14 @@ def test_start_local_and_vm_with_accounts(deck, capsys):
 
     # secrets: passed in a 0600 env file the pane reads and deletes, never on its command
     # line, and not left on the host's disk afterwards
-    env_file = deck.vm_home() / ".ccdeck" / "env" / "api.sh"
-    assert not env_file.exists() and not (deck.home / ".ccdeck" / "env" / "shop.sh").exists()
+    env_file = deck.vm_home() / ".derot" / "env" / "api.sh"
+    assert not env_file.exists() and not (deck.home / ".derot" / "env" / "shop.sh").exists()
     cfg = config.load()
     content = sessions.env_content(cfg.account_of(cfg.session("api")))
-    assert "CCDECK_TEST_VAR='hello world'" in content and "bad-key" not in content
+    assert "DEROT_TEST_VAR='hello world'" in content and "bad-key" not in content
     proc = remote.sh(config.Host("local"), sessions.write_env_script("probe"), input=content)
     assert proc.returncode == 0
-    written = deck.home / ".ccdeck" / "env" / "probe.sh"
+    written = deck.home / ".derot" / "env" / "probe.sh"
     assert written.stat().st_mode & 0o777 == 0o600 and written.read_text() == content
     assert "hello world" not in sessions.start_script(cfg, cfg.session("api"))
     assert sessions.env_content(cfg.account_of(cfg.session("api"))) not in sessions.pane_cmd(
@@ -132,15 +132,15 @@ def test_status_flow_and_sorting(deck, capsys):
 
 
 def test_idle_without_hooks(env, capsys):
-    """A session running without the hook script (e.g. started outside ccdeck) says so;
-    `ccdeck start` itself sets missing hooks up first (test_045)."""
+    """A session running without the hook script (e.g. started outside derot) says so;
+    `derot start` itself sets missing hooks up first (test_045)."""
     env.write_config(CONFIG)
     (env.home / "proj" / "shop").mkdir(parents=True)
     cfg = config.load()
     script = sessions.start_script(cfg, cfg.session("shop"))
     assert remote.sh(cfg.hosts["local"], script).returncode == 0  # no hook setup
     st = wait_for(lambda: by_name(sessions.poll(cfg))["shop"], what="poll")
-    assert st.state == "idle" and "ccdeck setup" in st.message
+    assert st.state == "idle" and "derot setup" in st.message
 
 
 def test_missing_dir_fails_the_start(deck, capsys):
@@ -163,9 +163,9 @@ def test_attach_then_detach_marks_seen(deck):
     wait_for(lambda: by_name(sessions.poll(cfg))["shop"].state == "done", what="done")
 
     pid, fd = pty.fork()
-    if pid == 0:  # child: run `ccdeck attach shop` on a real tty
+    if pid == 0:  # child: run `derot attach shop` on a real tty
         os.environ["TERM"] = "xterm-256color"
-        os.execv(sys.executable, [sys.executable, "-m", "ccdeck", "attach", "shop"])
+        os.execv(sys.executable, [sys.executable, "-m", "derot", "attach", "shop"])
     try:
         wait_for(lambda: by_name(sessions.poll(cfg))["shop"].attached, what="attached")
         assert deck.tmux("detach-client", "-s", "cc-shop").returncode == 0
@@ -190,7 +190,7 @@ def test_poll_script_parsing():
 
 
 def test_qpath():
-    from ccdeck.remote import qpath
+    from derot.remote import qpath
     assert qpath("~/x y") == "\"$HOME\"/'x y'"
     assert qpath("~") == '"$HOME"'
     assert qpath("/a b") == "'/a b'"

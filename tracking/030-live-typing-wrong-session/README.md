@@ -15,9 +15,9 @@
 
 ## Where
 
-- `ccdeck/tui.py:516` `queue_input()`
-- `ccdeck/tui.py:529` `input_sender()`
-- `ccdeck/tui.py:497` `stop_live()`
+- `derot/tui.py:516` `queue_input()`
+- `derot/tui.py:529` `input_sender()`
+- `derot/tui.py:497` `stop_live()`
 
 ## Proposed fix
 

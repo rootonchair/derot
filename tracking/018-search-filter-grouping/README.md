@@ -7,7 +7,7 @@
 | Priority | P2 |
 | Size | S–M |
 | Verified | n/a |
-| Source | ccdeck review, 2026-10-29 |
+| Source | derot review, 2026-10-29 |
 
 ## Problem
 
@@ -15,7 +15,7 @@ The list gets long with many projects/machines.
 
 ## Where
 
-- `ccdeck/tui.py` `render_table()`
+- `derot/tui.py` `render_table()`
 
 ## Proposed fix
 

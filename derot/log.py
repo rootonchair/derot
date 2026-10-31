@@ -1,7 +1,7 @@
-"""Logging to ~/.ccdeck/ccdeck.log, so failures in background steps can be traced later.
+"""Logging to ~/.derot/derot.log, so failures in background steps can be traced later.
 
 Levels: INFO for actions (start, stop, setup, config saves), WARNING/ERROR for failures with
-full stderr or tracebacks. Set CCDECK_DEBUG=1 to also log every command ccdeck runs.
+full stderr or tracebacks. Set DEROT_DEBUG=1 to also log every command derot runs.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ import re
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-log = logging.getLogger("ccdeck")
+log = logging.getLogger("derot")
 log.addHandler(logging.NullHandler())  # nothing reaches the terminal before setup()
 log.propagate = False
 
@@ -24,7 +24,7 @@ SECRET_RE = re.compile(
 
 
 def log_path() -> Path:
-    return Path("~/.ccdeck/ccdeck.log").expanduser()
+    return Path("~/.derot/derot.log").expanduser()
 
 
 def redact(text: str) -> str:
@@ -42,7 +42,7 @@ def setup() -> None:
     for h in list(log.handlers):
         log.removeHandler(h)
         h.close()
-    debug = os.environ.get("CCDECK_DEBUG", "") not in ("", "0")
+    debug = os.environ.get("DEROT_DEBUG", "") not in ("", "0")
     log.setLevel(logging.DEBUG if debug else logging.INFO)
     log.propagate = False
     try:

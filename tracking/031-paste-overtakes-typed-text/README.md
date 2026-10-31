@@ -15,7 +15,7 @@
 
 ## Where
 
-- `ccdeck/tui.py:537` `input_sender()` batch loop
+- `derot/tui.py:537` `input_sender()` batch loop
 
 ## Proposed fix
 

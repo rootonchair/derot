@@ -6,8 +6,8 @@ import time
 import pytest
 from textual.widgets import DataTable, Static
 
-from ccdeck import cli, config, sessions
-from ccdeck.tui import CCDeck, render_conversation
+from derot import cli, config, sessions
+from derot.tui import Derot, render_conversation
 
 from .conftest import needs_tmux
 
@@ -75,7 +75,7 @@ sessions: [{{name: shop, dir: ~/shop}}]
     cli.main(["setup"])
     cli.main(["start", "shop", "-d"])
     capsys.readouterr()
-    app = CCDeck(config.load())
+    app = Derot(config.load())
 
     def state():
         return {st.name: st for st in app.statuses}["shop"].state
@@ -120,7 +120,7 @@ async def test_digits_go_to_waiting_session_only(env, monkeypatch):
     monkeypatch.setattr(sessions, "fit", lambda *a: None)
     env.write_config("sessions: [{name: a, dir: /x}, {name: b, dir: /y}]\n")
     cfg = config.load()
-    app = CCDeck(cfg, poll_on_mount=False)
+    app = Derot(cfg, poll_on_mount=False)
     async with app.run_test(size=(150, 40)) as pilot:
         sts = [sessions.Status(s, cfg.host_of(s), cfg.account_of(s), state=st)
                for s, st in zip(cfg.sessions, ["waiting", "busy"])]
@@ -144,7 +144,7 @@ async def test_missing_transcript_shows_screen_not_error(env, tmp_path, monkeypa
     monkeypatch.setattr(sessions, "screen", lambda cfg, name: sessions.Screen(
         "╭ Claude Code ╮ > \x1b[2mTry it\x1b[0m"))
     monkeypatch.setattr(sessions, "fit", lambda *a: None)
-    app = CCDeck(cfg, poll_on_mount=False)
+    app = Derot(cfg, poll_on_mount=False)
     async with app.run_test(size=(150, 40)) as pilot:
         s = cfg.sessions[0]
         app.apply_poll([sessions.Status(s, cfg.host_of(s), cfg.account_of(s), state="idle",
@@ -175,7 +175,7 @@ def test_tmux_key_mapping():
 
 
 def test_render_screen_draws_cursor():
-    from ccdeck.tui import render_screen
+    from derot.tui import render_screen
     t = render_screen(sessions.Screen("ab\n> /mo", (80, 24), (5, 1)), cursor=True)
     assert t.plain == "ab\n> /mo "  # cursor after the text gets a cell
     assert any("reverse" in str(sp.style) and sp.start == 8 for sp in t.spans)
@@ -194,7 +194,7 @@ sessions: [{{name: shop, dir: ~/shop}}]
     cli.main(["setup"])
     cli.main(["start", "shop", "-d"])
     capsys.readouterr()
-    app = CCDeck(config.load())
+    app = Derot(config.load())
 
     def status():
         return {st.name: st for st in app.statuses}["shop"]
@@ -227,7 +227,7 @@ async def test_preview_follows_the_cursor_without_showing_a_stale_session(env, m
     monkeypatch.setattr(sessions, "fit", lambda *a: None)
     env.write_config("sessions: [{name: a, dir: /x}, {name: b, dir: /y}]\n")
     cfg = config.load()
-    app = CCDeck(cfg, poll_on_mount=False)
+    app = Derot(cfg, poll_on_mount=False)
     async with app.run_test(size=(150, 40)) as pilot:
         app.apply_poll([sessions.Status(s, cfg.host_of(s), cfg.account_of(s), state="idle")
                         for s in cfg.sessions], {})
@@ -247,7 +247,7 @@ async def test_click_on_the_right_panel_starts_typing(env, monkeypatch):
     monkeypatch.setattr(sessions, "fit", lambda *a: None)
     env.write_config("sessions: [{name: a, dir: /x}, {name: b, dir: /y}]\n")
     cfg = config.load()
-    app = CCDeck(cfg, poll_on_mount=False)
+    app = Derot(cfg, poll_on_mount=False)
     async with app.run_test(size=(150, 40)) as pilot:
         app.apply_poll([sessions.Status(s, cfg.host_of(s), cfg.account_of(s), state=st)
                         for s, st in zip(cfg.sessions, ["idle", "stopped"])], {})
@@ -272,7 +272,7 @@ async def test_click_on_the_right_panel_starts_typing(env, monkeypatch):
         app.query_one(DataTable).move_cursor(row=0)
         await pilot.pause()
         region = app.query_one("#preview-box").region
-        from ccdeck.forms import Confirm
+        from derot.forms import Confirm
         app.push_screen(Confirm("sure?"))
         await pilot.pause()
         await pilot.click(offset=(region.x + 2, region.bottom - 2))  # behind a form: nothing

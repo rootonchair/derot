@@ -1,4 +1,4 @@
-# Hosts kept an older hook.py until `ccdeck setup` was re-run
+# Hosts kept an older hook.py until `derot setup` was re-run
 
 | Field | Value |
 |---|---|
@@ -11,11 +11,11 @@
 
 ## Problem
 
-hook.py was only updated by `ccdeck setup` or `u`. After an upgrade, hosts quietly kept the old status logic, so fixes such as 036, 037, 040 and 044 never took effect there.
+hook.py was only updated by `derot setup` or `u`. After an upgrade, hosts quietly kept the old status logic, so fixes such as 036, 037, 040 and 044 never took effect there.
 
 ## Where
 
-`ccdeck/installer.py` `hooks_present()` / `ensure_hooks()`
+`derot/installer.py` `hooks_present()` / `ensure_hooks()`
 
 ## Fix
 
@@ -27,4 +27,4 @@ Same check as 046. A hook.py that differs from this version counts as missing, s
 
 ## Notes
 
-Test: `test_bughunt_new.py::test_047_older_hook_is_replaced_before_start`. Sessions that are already running keep the old hook until they are restarted. If two ccdeck versions manage the same host, each start re-uploads its own copy, which is harmless.
+Test: `test_bughunt_new.py::test_047_older_hook_is_replaced_before_start`. Sessions that are already running keep the old hook until they are restarted. If two derot versions manage the same host, each start re-uploads its own copy, which is harmless.

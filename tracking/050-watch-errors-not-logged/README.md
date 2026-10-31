@@ -1,4 +1,4 @@
-# `ccdeck watch` poll errors only went to stderr
+# `derot watch` poll errors only went to stderr
 
 | Field | Value |
 |---|---|
@@ -11,11 +11,11 @@
 
 ## Problem
 
-As a background service, watch's stderr is usually unread. Poll exceptions and failed config reloads left no trace in `ccdeck log`.
+As a background service, watch's stderr is usually unread. Poll exceptions and failed config reloads left no trace in `derot log`.
 
 ## Where
 
-`ccdeck/cli.py` `cmd_watch()` (line 170)
+`derot/cli.py` `cmd_watch()` (line 170)
 
 ## Fix
 

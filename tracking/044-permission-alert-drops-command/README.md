@@ -15,7 +15,7 @@
 
 ## Where
 
-`ccdeck/notify.py` `brief()`
+`derot/notify.py` `brief()`
 
 ## Fix
 

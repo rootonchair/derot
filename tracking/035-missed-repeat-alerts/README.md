@@ -15,7 +15,7 @@
 
 ## Where
 
-- `ccdeck/notify.py:126` `Notifier.update()`
+- `derot/notify.py:126` `Notifier.update()`
 
 ## Proposed fix
 

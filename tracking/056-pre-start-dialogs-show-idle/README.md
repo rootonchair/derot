@@ -11,11 +11,11 @@
 
 ## Problem
 
-Before a session really starts, Claude can wait on a screen that fires no hook: "Is this a project you trust?" in a new folder, or a new account's welcome / login screens. ccdeck showed "idle" (and after 15 s suggested pressing u, which was wrong advice).
+Before a session really starts, Claude can wait on a screen that fires no hook: "Is this a project you trust?" in a new folder, or a new account's welcome / login screens. derot showed "idle" (and after 15 s suggested pressing u, which was wrong advice).
 
 ## Where
 
-`ccdeck/sessions.py` `resolve()`
+`derot/sessions.py` `resolve()`
 
 ## Fix
 

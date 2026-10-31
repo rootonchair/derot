@@ -1,4 +1,4 @@
-"""The ccdeck console (Textual)."""
+"""The derot console (Textual)."""
 
 from __future__ import annotations
 
@@ -113,8 +113,8 @@ class LiveView(Static):
             self.app.stop_live()
 
 
-class CCDeck(App):
-    TITLE = "ccdeck"
+class Derot(App):
+    TITLE = "derot"
     CSS = """
     Screen { layout: vertical; }
     #summary { height: 1; padding: 0 1; background: $panel; }
@@ -184,7 +184,7 @@ class CCDeck(App):
                     f"{title}: " if title else "", message)
         if severity == "error":
             timeout = ERROR_TOAST_SECS if timeout is None else max(timeout, ERROR_TOAST_SECS)
-            message = f"{message}\n(details: ccdeck log)"
+            message = f"{message}\n(details: derot log)"
         return super().notify(message, title=title, severity=severity, timeout=timeout, **kw)
 
     def trace(self, what: str, exc: BaseException) -> None:
@@ -288,7 +288,7 @@ class CCDeck(App):
         for st in self.statuses:
             counts[st.state] = counts.get(st.state, 0) + 1
         t = Text()
-        t.append("ccdeck", style="bold")
+        t.append("derot", style="bold")
         words = {"waiting": "need you", "done": "done", "busy": "working", "idle": "idle",
                  "stopped": "stopped"}
         parts = [(f"{counts[k]} {w}", STYLE[k][2]) for k, w in words.items() if counts.get(k)]
@@ -721,7 +721,7 @@ class CCDeck(App):
                                           self.cfg.account_of(s).config_dir):
                 self.call_from_thread(
                     self.notify, f"status hooks for {s.account} on {s.host} couldn't be set "
-                    "up, so its status may stay idle (details: ccdeck log)",
+                    "up, so its status may stay idle (details: derot log)",
                     severity="warning", timeout=12)
             sessions.start(self.cfg, name, cont, resume, resume_file)
         except sessions.SessionError as e:  # already logged with full stderr
@@ -894,7 +894,7 @@ class CCDeck(App):
                 self.forget_worker(old, st.name)
                 self.notify(f"removed {st.name} (its conversations are kept by Claude Code)")
 
-        self.push_screen(Confirm(f"Remove “{st.name}” from ccdeck?", yes="Remove"), done)
+        self.push_screen(Confirm(f"Remove “{st.name}” from derot?", yes="Remove"), done)
 
     @work(thread=True, group="forget")
     def forget_worker(self, cfg: Config, name: str) -> None:
@@ -934,7 +934,7 @@ class CCDeck(App):
         try:
             with self.suspend():
                 print(f"Opening Claude Code for account {account} on {host}.")
-                print("Type /login to sign in, then /exit to come back to ccdeck.\n")
+                print("Type /login to sign in, then /exit to come back to derot.\n")
                 sessions.login(self.cfg, account, host)
         except Exception as e:
             self.trace("couldn't open login", e)
@@ -943,7 +943,7 @@ class CCDeck(App):
     def action_setup(self) -> None:
         try:
             with self.suspend():
-                print("Running ccdeck setup…\n")
+                print("Running derot setup…\n")
                 try:
                     installer.setup(self.cfg)
                 except Exception as e:
@@ -960,4 +960,4 @@ class CCDeck(App):
 
 
 def run(cfg: Config, created: bool = False) -> None:
-    CCDeck(cfg, created=created).run()
+    Derot(cfg, created=created).run()

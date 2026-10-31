@@ -15,7 +15,7 @@ Textual thread workers run in asyncio's default executor, which `asyncio.run` jo
 
 ## Where
 
-`ccdeck/tui.py` `install_hooks_worker()` (line 879) and the other `@work(thread=True)` workers
+`derot/tui.py` `install_hooks_worker()` (line 879) and the other `@work(thread=True)` workers
 
 ## Fix (proposed)
 

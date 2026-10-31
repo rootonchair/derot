@@ -1,6 +1,6 @@
 import json
 
-from ccdeck import cli, installer
+from derot import cli, installer
 
 from .conftest import needs_tmux
 
@@ -29,12 +29,12 @@ USER_SETTINGS = {
 }
 
 
-def ccdeck_cmds(settings):
+def derot_cmds(settings):
     out = []
     for ev, groups in settings.get("hooks", {}).items():
         for g in groups:
             for h in g["hooks"]:
-                if "/.ccdeck/hook.py" in h["command"]:
+                if "/.derot/hook.py" in h["command"]:
                     out.append((ev, g.get("matcher"), h["command"]))
     return out
 
@@ -52,20 +52,20 @@ def test_setup_install_idempotent_and_remove(env, capsys):
     assert "✓ tmux" in out and "✓ hook installed" in out
 
     # hook file on both hosts
-    assert (env.home / ".ccdeck" / "hook.py").exists()
-    assert (env.vm_home() / ".ccdeck" / "hook.py").exists()
-    assert (env.vm_home() / ".ccdeck" / "state").is_dir()
+    assert (env.home / ".derot" / "hook.py").exists()
+    assert (env.vm_home() / ".derot" / "hook.py").exists()
+    assert (env.vm_home() / ".derot" / "state").is_dir()
 
     files = [personal, env.home / ".claude-work" / "settings.json",
              env.vm_home() / ".claude-work" / "settings.json"]
     for f in files:
         s = json.loads(f.read_text())
-        cmds = ccdeck_cmds(s)
+        cmds = derot_cmds(s)
         assert len(cmds) == 10, f  # 7 core + 3 newer events the fake claude supports
-        assert ("PreToolUse", "*", "python3 ~/.ccdeck/hook.py PreToolUse") in cmds
-        assert ("PermissionRequest", "*", "python3 ~/.ccdeck/hook.py PermissionRequest") in cmds
-        assert ("StopFailure", None, "python3 ~/.ccdeck/hook.py StopFailure") in cmds
-        assert ("Stop", None, "python3 ~/.ccdeck/hook.py Stop") in cmds
+        assert ("PreToolUse", "*", "python3 ~/.derot/hook.py PreToolUse") in cmds
+        assert ("PermissionRequest", "*", "python3 ~/.derot/hook.py PermissionRequest") in cmds
+        assert ("StopFailure", None, "python3 ~/.derot/hook.py StopFailure") in cmds
+        assert ("Stop", None, "python3 ~/.derot/hook.py Stop") in cmds
     # VM's personal account isn't used there
     assert not (env.vm_home() / ".claude").exists()
 
@@ -73,13 +73,13 @@ def test_setup_install_idempotent_and_remove(env, capsys):
     assert s["model"] == "opus" and s["permissions"] == USER_SETTINGS["permissions"]
     assert {"type": "command", "command": "say done"} in s["hooks"]["Stop"][0]["hooks"]
     assert s["hooks"]["PreToolUse"][0]["matcher"] == "Edit"
-    assert (personal.parent / "settings.json.ccdeck-bak").read_text() == original
+    assert (personal.parent / "settings.json.derot-bak").read_text() == original
 
     # second run: no duplicates
     cli.main(["setup"])
     capsys.readouterr()
     for f in files:
-        assert len(ccdeck_cmds(json.loads(f.read_text()))) == 10
+        assert len(derot_cmds(json.loads(f.read_text()))) == 10
 
     # remove: back to exactly the original settings
     assert cli.main(["setup", "--remove"]) == 1  # dead host still unreachable
@@ -120,7 +120,7 @@ sessions: [{{name: a, dir: ~/a}}]
 """)
     assert cli.main(["setup"]) == 0
     s = json.loads((env.home / ".claude" / "settings.json").read_text())
-    assert sorted(ev for ev, _, _ in ccdeck_cmds(s)) == sorted(installer.EVENTS)
+    assert sorted(ev for ev, _, _ in derot_cmds(s)) == sorted(installer.EVENTS)
 
     # upgrading claude later and re-running setup adds the extras without duplicates
     env.write_config(f"""
@@ -129,6 +129,6 @@ sessions: [{{name: a, dir: ~/a}}]
 """)
     assert cli.main(["setup"]) == 0
     s = json.loads((env.home / ".claude" / "settings.json").read_text())
-    assert len(ccdeck_cmds(s)) == 10
+    assert len(derot_cmds(s)) == 10
     assert cli.main(["setup", "--remove"]) == 0
     assert "hooks" not in json.loads((env.home / ".claude" / "settings.json").read_text())

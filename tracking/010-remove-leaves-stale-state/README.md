@@ -7,15 +7,15 @@
 | Priority | P3 |
 | Size | S |
 | Verified | reviewer read |
-| Source | ccdeck review, 2026-10-29 |
+| Source | derot review, 2026-10-29 |
 
 ## Problem
 
-`d` removes the session from config but not `~/.ccdeck/state/<name>.json` on the host, so a new session with the same name shows the old prompt/message.
+`d` removes the session from config but not `~/.derot/state/<name>.json` on the host, so a new session with the same name shows the old prompt/message.
 
 ## Where
 
-- `ccdeck/tui.py:469` `action_remove_session()`
+- `derot/tui.py:469` `action_remove_session()`
 
 ## Proposed fix
 
@@ -33,9 +33,9 @@ _Add findings, decisions and links to commits here._
 
 **Verdict:** confirmed. **Priority:** P2 → P3.
 
-- `action_remove_session()` only saves the config. However, `start_script()` already runs `rm -f ~/.ccdeck/state/<name>.json` before every start, so the old data only shows until the re-added session is first started: the last message, the age and, now, the old **conversation** in the auto preview (stopped sessions show the transcript). It is cosmetic and goes away on start, hence P3.
+- `action_remove_session()` only saves the config. However, `start_script()` already runs `rm -f ~/.derot/state/<name>.json` before every start, so the old data only shows until the re-added session is first started: the last message, the age and, now, the old **conversation** in the auto preview (stopped sessions show the transcript). It is cosmetic and goes away on start, hence P3.
 - **Fix:** sound. Delete the state file on the *old* host, which matters if the re-added session uses a different host. Do the same when a session is renamed or moved to another host in `e`.
-- **Missing, related:** `~/.ccdeck/env/<name>.sh` is never removed either, by remove or anywhere else. It holds the account's env, including `ANTHROPIC_API_KEY` (mode 0600), and it stays on every host the session ever ran on, even after the key is taken out of the config. Delete it in the same command: `rm -f state/<name>.json env/<name>.sh`.
+- **Missing, related:** `~/.derot/env/<name>.sh` is never removed either, by remove or anywhere else. It holds the account's env, including `ANTHROPIC_API_KEY` (mode 0600), and it stays on every host the session ever ran on, even after the key is taken out of the config. Delete it in the same command: `rm -f state/<name>.json env/<name>.sh`.
 
 ## Fix (2026-10-31)
 

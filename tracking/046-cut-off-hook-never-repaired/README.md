@@ -11,11 +11,11 @@
 
 ## Problem
 
-The upload wrote `~/.ccdeck/hook.py` in place (`cat > hook.py`). If setup was interrupted mid-upload (console quit or Ctrl-C), half a file stayed. The check before a start (045) only tested that the file existed, so it never repaired it. Every hook call then failed with a SyntaxError, and the session stayed idle with no visible error. Hooks firing during an upload could also read a half-written file.
+The upload wrote `~/.derot/hook.py` in place (`cat > hook.py`). If setup was interrupted mid-upload (console quit or Ctrl-C), half a file stayed. The check before a start (045) only tested that the file existed, so it never repaired it. Every hook call then failed with a SyntaxError, and the session stayed idle with no visible error. Hooks firing during an upload could also read a half-written file.
 
 ## Where
 
-`ccdeck/installer.py` `UPLOAD_SCRIPT` (line 52), `HOOKS_PRESENT_SCRIPT` / `hooks_present()` (lines 153–188)
+`derot/installer.py` `UPLOAD_SCRIPT` (line 52), `HOOKS_PRESENT_SCRIPT` / `hooks_present()` (lines 153–188)
 
 ## Fix
 

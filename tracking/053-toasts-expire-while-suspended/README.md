@@ -11,11 +11,11 @@
 
 ## Problem
 
-During `App.suspend()` (attach, login, editor, setup), worker results still arrive through `call_from_thread(self.notify, …)`, for example "hook setup on X failed (press u)". Toast timers keep running while suspended, so after a long attach the message may already be gone. Errors and warnings are still logged (`CCDeck.notify`), so they aren't lost entirely.
+During `App.suspend()` (attach, login, editor, setup), worker results still arrive through `call_from_thread(self.notify, …)`, for example "hook setup on X failed (press u)". Toast timers keep running while suspended, so after a long attach the message may already be gone. Errors and warnings are still logged (`Derot.notify`), so they aren't lost entirely.
 
 ## Where
 
-`ccdeck/tui.py` `notify()` (line 180), `attach()`, `login()`
+`derot/tui.py` `notify()` (line 180), `attach()`, `login()`
 
 ## Fix (proposed)
 

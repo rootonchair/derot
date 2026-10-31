@@ -7,7 +7,7 @@
 | Priority | P2 |
 | Size | S |
 | Verified | n/a |
-| Source | ccdeck review, 2026-10-29 |
+| Source | derot review, 2026-10-29 |
 
 ## Problem
 
@@ -15,7 +15,7 @@ After a reboot, every session has to be continued one by one.
 
 ## Where
 
-- `ccdeck/tui.py`
+- `derot/tui.py`
 
 ## Proposed fix
 

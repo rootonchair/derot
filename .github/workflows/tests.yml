@@ -23,6 +23,6 @@ jobs:
       - name: Install
         run: pip install -e '.[test]'
       - name: Lint
-        run: python -m pyflakes ccdeck tests scripts
+        run: python -m pyflakes derot tests scripts
       - name: Test
         run: python -m pytest -q

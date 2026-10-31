@@ -15,7 +15,7 @@
 
 ## Where
 
-`ccdeck/remote.py` `wrap()`, `sh()`, `python()`
+`derot/remote.py` `wrap()`, `sh()`, `python()`
 
 ## Proposed fix
 

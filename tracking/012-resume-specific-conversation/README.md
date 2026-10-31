@@ -7,7 +7,7 @@
 | Priority | P0 |
 | Size | M |
 | Verified | n/a |
-| Source | ccdeck review, 2026-10-29 |
+| Source | derot review, 2026-10-29 |
 
 ## Problem
 
@@ -15,9 +15,9 @@
 
 ## Where
 
-- `ccdeck/hook.py` (doesn't store `session_id`)
-- `ccdeck/tui.py:310` `action_continue()`
-- `ccdeck/sessions.py` `start()`
+- `derot/hook.py` (doesn't store `session_id`)
+- `derot/tui.py:310` `action_continue()`
+- `derot/sessions.py` `start()`
 
 ## Proposed fix
 
@@ -40,7 +40,7 @@ _Add findings, decisions and links to commits here._
 - `sessions.conversations()` runs `CONVERSATIONS_SCRIPT` on the host: reads `<config_dir>/projects/<folder with non-alphanumerics as ->/*.jsonl` (checked against the real layout: `model_test` → `model-test`), newest first. Title = last `custom-title`, else last `ai-title`; plus first user prompt and last `last-prompt`. Titles are found by searching backwards with mmap (real transcripts are ~10 MB). Conversations where nothing was said are skipped.
 - `R` opens `forms.ResumePicker` (marks the conversation this session last used); Enter starts it with `--resume <id>`, in the background like `s`/`c`.
 - `c` resumes the session's stored `session_id`; if its transcript doesn't exist (nothing was said), it falls back to `--continue`.
-- CLI: `ccdeck start NAME --resume ID`, `ccdeck history NAME`.
+- CLI: `derot start NAME --resume ID`, `derot history NAME`.
 - Found and fixed while testing: after a quick stop → start, the killed Claude's late `SessionEnd` could claim the fresh state file, so the new session's events were all ignored. `hook.owns()` no longer lets `SessionEnd` claim an empty state.
 - Tests: `tests/test_resume.py` (fake Claude now writes transcripts in the real layout and honours `--resume` / `--continue`).
 

@@ -7,7 +7,7 @@
 | Priority | P2 |
 | Size | S–M |
 | Verified | likely (based on Claude Code hook behaviour; not reproduced with real Claude) |
-| Source | ccdeck review, 2026-10-29 |
+| Source | derot review, 2026-10-29 |
 
 ## Problem
 
@@ -15,8 +15,8 @@ Claude Code doesn't fire `Stop` on Esc-interrupt, and denying a permission doesn
 
 ## Where
 
-- `ccdeck/hook.py` `apply()` — event → state table
-- `ccdeck/sessions.py` `resolve()`
+- `derot/hook.py` `apply()` — event → state table
+- `derot/sessions.py` `resolve()`
 
 ## Proposed fix
 
@@ -47,7 +47,7 @@ Tests: `test_004_*` (decline, Esc, reconcile without the new events), `test_olde
 
 - The fixed parts are in the code: `apply()` handles `PermissionRequest`, `PostToolUseFailure(is_interrupt)` and `StopFailure`, and `reconcile()` runs on `--dump` for Esc and declines. Their tests pass.
 - Still open: after you approve a permission, no hook event fires, so the row stays at "needs you" until `PostToolUse`. The current hooks docs list no event that fires on approval (`PermissionDenied` covers auto-mode denials only). This happens more often now, because pressing 1-9 or Enter while typing live is the usual way to approve.
-- **Simpler fix than screen scraping:** when ccdeck itself sends a digit, or Enter while typing live, to a session in `waiting`, run a small remote script (like `MARK_SEEN`) that changes `waiting` to `busy` ("approved, running…"). Only do it if the state file's `ts` is still the one the console saw. Because the change is stored on the host, `watch` and other consoles see it too, and the `ts` check stops it from overwriting a newer prompt. Approvals made while attached would still need the pane check, or the same flip on detach when the screen shows no prompt.
+- **Simpler fix than screen scraping:** when derot itself sends a digit, or Enter while typing live, to a session in `waiting`, run a small remote script (like `MARK_SEEN`) that changes `waiting` to `busy` ("approved, running…"). Only do it if the state file's `ts` is still the one the console saw. Because the change is stored on the host, `watch` and other consoles see it too, and the `ts` check stops it from overwriting a newer prompt. Approvals made while attached would still need the pane check, or the same flip on detach when the screen shows no prompt.
 - **Split:** close 004 and move the "approved long tool still shows needs you" part into a new P2 item. It is related to 035, because the approve-then-next-prompt flow is where alerts get missed.
 
 ## Fix (2026-10-31)

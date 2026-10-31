@@ -14,7 +14,7 @@ from . import remote
 from .config import Account, Config, Host, SessionDef
 from .log import log
 
-TMUX = ["tmux", "-L", "ccdeck"]
+TMUX = ["tmux", "-L", "derot"]
 ORDER = ["waiting", "done", "busy", "idle", "stopped", "offline"]
 
 # state -> (icon, label, color, bold)
@@ -29,23 +29,23 @@ STYLE = {
 
 POLL_SCRIPT = r"""
 echo "@@TMUX"
-tmux -L ccdeck list-sessions -F '#{session_name}|#{session_attached}|#{session_created}' 2>/dev/null | grep '^cc-' || true
+tmux -L derot list-sessions -F '#{session_name}|#{session_attached}|#{session_created}' 2>/dev/null | grep '^cc-' || true
 echo "@@NOW"
 date +%s
 echo "@@STATE"
-if grep -q -- '--dump' "$HOME/.ccdeck/hook.py" 2>/dev/null; then
-  python3 "$HOME/.ccdeck/hook.py" --dump 2>/dev/null
+if grep -q -- '--dump' "$HOME/.derot/hook.py" 2>/dev/null; then
+  python3 "$HOME/.derot/hook.py" --dump 2>/dev/null
 else
-  for f in "$HOME"/.ccdeck/state/*.json; do [ -f "$f" ] && { cat "$f"; echo; }; done
+  for f in "$HOME"/.derot/state/*.json; do [ -f "$f" ] && { cat "$f"; echo; }; done
 fi
 echo "@@HOOK"
-[ -f "$HOME/.ccdeck/hook.py" ] && echo yes || echo no
+[ -f "$HOME/.derot/hook.py" ] && echo yes || echo no
 echo "@@END"
 """
 
 MARK_SEEN = r"""
 import json, os, sys, tempfile
-p = os.path.expanduser("~/.ccdeck/state/%s.json" % sys.argv[1])
+p = os.path.expanduser("~/.derot/state/%s.json" % sys.argv[1])
 try:
     with open(p) as f:
         d = json.load(f)
@@ -59,12 +59,12 @@ if isinstance(d, dict) and d.get("state") == "done":
     os.replace(tmp, p)
 """
 
-# You answered a permission prompt from ccdeck: no hook fires on approval, so without this
+# You answered a permission prompt from derot: no hook fires on approval, so without this
 # a long approved tool shows "needs you" until it finishes. Only if the state is still the
 # one the console saw (same ts), so a newer prompt is never overwritten.
 MARK_ANSWERED = r"""
 import json, os, sys, tempfile
-p = os.path.expanduser("~/.ccdeck/state/%s.json" % sys.argv[1])
+p = os.path.expanduser("~/.derot/state/%s.json" % sys.argv[1])
 try:
     with open(p) as f:
         d = json.load(f)
@@ -80,7 +80,7 @@ if isinstance(d, dict) and d.get("state") == "waiting" \
     os.replace(tmp, p)
 """
 
-HOOK_MISSING = "status hooks not installed: run `ccdeck setup`"
+HOOK_MISSING = "status hooks not installed: run `derot setup`"
 NO_STATUS = ("Claude hasn't started yet, probably a login, trust or first-run screen "
              "(i or click to answer it; if nothing's there, press u)")
 NO_STATUS_SECS = 15
@@ -262,7 +262,7 @@ def target(name: str) -> str:
 def env_file(key: str) -> str:
     """Per-session file (0600) holding the account's env vars, sourced (and deleted) by the
     pane, so secrets never appear on a command line (`ps`)."""
-    return f'"$HOME/.ccdeck/env/{key}.sh"'
+    return f'"$HOME/.derot/env/{key}.sh"'
 
 
 def env_content(account: Account) -> str:
@@ -274,7 +274,7 @@ def env_content(account: Account) -> str:
 def write_env_script(key: str) -> str:
     """Shell that stores stdin as the env file. umask only inside the subshell, so panes
     (and the files Claude creates) keep the normal umask."""
-    return f'(umask 077; mkdir -p "$HOME/.ccdeck/env" && cat > {env_file(key)})'
+    return f'(umask 077; mkdir -p "$HOME/.derot/env" && cat > {env_file(key)})'
 
 
 def key_label(key: str) -> str:
@@ -287,9 +287,9 @@ def env_lines(account: Account, key: str) -> List[str]:
     `$HOME/.claude` and an absolute path to it all keep Claude Code's normal login."""
     return [
         "unset CLAUDECODE",
-        f"ccdeck_dir={remote.qpath(account.config_dir)}",
-        'if [ "${ccdeck_dir%/}" = "$HOME/.claude" ]; then unset CLAUDE_CONFIG_DIR; '
-        'else export CLAUDE_CONFIG_DIR="$ccdeck_dir"; fi; unset ccdeck_dir',
+        f"derot_dir={remote.qpath(account.config_dir)}",
+        'if [ "${derot_dir%/}" = "$HOME/.claude" ]; then unset CLAUDE_CONFIG_DIR; '
+        'else export CLAUDE_CONFIG_DIR="$derot_dir"; fi; unset derot_dir',
         # read once, then delete: the secrets live only in the session's processes, not
         # on the host's disk after the session is stopped or removed
         f"if [ -f {env_file(key)} ]; then . {env_file(key)}; rm -f {env_file(key)}; fi",
@@ -309,24 +309,24 @@ def inner_script(cfg: Config, s: SessionDef, cont: bool, resume: str = "",
         claude = f"{base} --resume {shlex.quote(resume)}"
     else:
         claude = f"{base} --continue" if cont else base
-    missing = shlex.quote(f"[ccdeck] folder not found: {s.dir}")
-    lines = [f"export CCDECK_SESSION={s.name}", *env_lines(account, s.name)]
+    missing = shlex.quote(f"[derot] folder not found: {s.dir}")
+    lines = [f"export DEROT_SESSION={s.name}", *env_lines(account, s.name)]
     lines += [
         f"cd {remote.qpath(s.dir)} || {{ echo {missing}; read _; exit 1; }}",
         f"{claude}; code=$?",
         'if [ "$code" -ne 0 ]; then '
-        'echo "[ccdeck] claude exited with code $code. Press Enter to close."; read _; fi',
+        'echo "[derot] claude exited with code $code. Press Enter to close."; read _; fi',
     ]
     return "\n".join(lines)
 
 
 def run_file(key: str) -> str:
-    return f'"$HOME/.ccdeck/run/{key}.sh"'
+    return f'"$HOME/.derot/run/{key}.sh"'
 
 
 def write_run_script(key: str, script: str) -> str:
     """Shell that stores the pane's script (no secrets: those are in the env file)."""
-    return (f'mkdir -p "$HOME/.ccdeck/run" && printf "%s\\n" {shlex.quote(script)}'
+    return (f'mkdir -p "$HOME/.derot/run" && printf "%s\\n" {shlex.quote(script)}'
             f' > {run_file(key)}')
 
 
@@ -359,8 +359,8 @@ def start_script(cfg: Config, s: SessionDef, cont: bool = False, resume: str = "
         "new-session", "-d", "-s", f"cc-{s.name}", "-x", "220", "-y", "60",
         pane_cmd(cfg, s, cont),
     ]
-    left = _fmt(f" ccdeck · {s.name} · {s.account}@{host.name} ")
-    right = _fmt(f"{key_label(cfg.detach_key)}: back to ccdeck ")
+    left = _fmt(f" derot · {s.name} · {s.account}@{host.name} ")
+    right = _fmt(f"{key_label(cfg.detach_key)}: back to derot ")
     opts = TMUX + [
         "set-option", "-g", "status-style", "bg=colour235,fg=colour245", ";",
         "set-option", "-g", "window-status-format", "", ";",
@@ -383,7 +383,7 @@ def start_script(cfg: Config, s: SessionDef, cont: bool = False, resume: str = "
         write_env_script(s.name) + " || " + fail,
         write_run_script(s.name, inner_script(cfg, s, cont, resume, resume_file))
         + " || " + fail,
-        f'rm -f "$HOME/.ccdeck/state/{s.name}.json"',
+        f'rm -f "$HOME/.derot/state/{s.name}.json"',
         shlex.join(new) + " || " + fail,
         shlex.join(opts) + " >/dev/null",
     ])
@@ -452,7 +452,7 @@ def mark_seen(cfg: Config, name: str) -> None:
 def forget(cfg: Config, name: str) -> None:
     """Delete a removed session's files on its host, so re-adding the name starts clean."""
     s = cfg.session(name)
-    files = " ".join(f'"$HOME/.ccdeck/{d}/"{shlex.quote(name + ext)}'
+    files = " ".join(f'"$HOME/.derot/{d}/"{shlex.quote(name + ext)}'
                      for d, ext in (("state", ".json"), ("env", ".sh")))
     proc = remote.sh(cfg.host_of(s), f"rm -f {files}")
     if proc.returncode != 0:
@@ -460,7 +460,7 @@ def forget(cfg: Config, name: str) -> None:
 
 
 def mark_answered(cfg: Config, name: str, seen_ts: float) -> None:
-    """waiting -> busy after you answered the prompt from ccdeck (see MARK_ANSWERED)."""
+    """waiting -> busy after you answered the prompt from derot (see MARK_ANSWERED)."""
     proc = remote.python(cfg.host_of(cfg.session(name)), MARK_ANSWERED, name, repr(seen_ts))
     if proc.returncode != 0:
         log.warning("couldn't mark %s as answered: %s", name, remote.full_error(proc))
@@ -768,7 +768,7 @@ def _literal(text: str) -> List[str]:
     return ([base] if base else []) + ["\\;"] * (len(text) - len(base))
 
 
-PASTE_BUFFER = "ccdeck-paste"
+PASTE_BUFFER = "derot-paste"
 
 
 def _input_argv(name: str, chunks: List[Tuple[str, str]]) -> List[str]:

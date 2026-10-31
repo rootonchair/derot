@@ -74,9 +74,9 @@ def main():
     print(f"[fake-claude] account={cdir} args={' '.join(args)} cwd={os.getcwd()}", flush=True)
     with open(os.path.join(cdir, "fake-claude-runs.log"), "a") as f:
         f.write(json.dumps({"args": args, "cwd": os.getcwd(),
-                            "session": os.environ.get("CCDECK_SESSION"),
+                            "session": os.environ.get("DEROT_SESSION"),
                             "config_dir_env": os.environ.get("CLAUDE_CONFIG_DIR"),
-                            "test_var": os.environ.get("CCDECK_TEST_VAR")}) + "\n")
+                            "test_var": os.environ.get("DEROT_TEST_VAR")}) + "\n")
     resumed = "--continue" in args or "--resume" in args
     fire("SessionStart", source="resume" if resumed else "startup")
     while True:

@@ -15,8 +15,8 @@ tmux treats any command-line argument that *ends* in `;` as a command separator 
 
 ## Where
 
-- `ccdeck/sessions.py:549` `send_input()` (`send-keys -l -- value`)
-- `ccdeck/sessions.py:531` `paste()` (`set-buffer -- text`)
+- `derot/sessions.py:549` `send_input()` (`send-keys -l -- value`)
+- `derot/sessions.py:531` `paste()` (`set-buffer -- text`)
 
 ## Proposed fix
 

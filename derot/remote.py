@@ -16,7 +16,7 @@ DEFAULT_TIMEOUT = 20
 
 
 def ssh_opts(batch: bool = True) -> List[str]:
-    ssh_dir = Path("~/.ccdeck/ssh").expanduser()
+    ssh_dir = Path("~/.derot/ssh").expanduser()
     ssh_dir.mkdir(parents=True, exist_ok=True)
     try:
         os.chmod(ssh_dir, 0o700)
@@ -136,7 +136,7 @@ def interactive(host: Host, argv: Sequence[str]) -> int:
         code = subprocess.call(wrap(host, argv, tty=True), env=local_env())
     except OSError as e:
         log.error("on %s: couldn't run %s: %s", host.name, describe(argv), e)
-        print(f"[ccdeck] {e}")
+        print(f"[derot] {e}")
         return 127
     if code not in (0, 130):
         log.warning("on %s: %s exited with %s", host.name, describe(argv), code)
