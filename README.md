@@ -1,6 +1,7 @@
 # derot
 
 [![tests](https://github.com/rootonchair/derot/actions/workflows/tests.yml/badge.svg)](https://github.com/rootonchair/derot/actions/workflows/tests.yml)
+[![PyPI](https://img.shields.io/pypi/v/derot.svg)](https://pypi.org/project/derot/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 **Stop coding-agent sessions rotting in forgotten terminals.** derot is one terminal console
@@ -74,8 +75,11 @@ Developed and used on macOS; the Linux code paths (tmux, `notify-send` notificat
 covered by CI but haven't seen much real use yet.
 
 ```sh
-pipx install git+https://github.com/rootonchair/derot     # or: uv tool install git+https://github.com/rootonchair/derot
+pipx install derot        # or: uv tool install derot
 ```
+
+Upgrade with `pipx upgrade derot` (or `uv tool upgrade derot`). For the latest unreleased
+code from `main`: `pipx install git+https://github.com/rootonchair/derot`.
 
 On macOS, `brew install tmux pipx` first. Each SSH machine needs `tmux`, `python3`, the
 agent(s) you use there, and key-based SSH access (`ssh my-vm true` works without a password
