@@ -5,11 +5,13 @@
 hosts:
   local:
     claude: claude             # command or full path for Claude Code on this machine
+    codex: codex               # command or full path for Codex on this machine
   # vm:
   #   ssh: user@my-vm          # anything `ssh` accepts, incl. ~/.ssh/config aliases
   #   claude: claude           # optional override
 
-# Claude accounts. Each account is a Claude Code config folder with its own login.
+# Accounts. Each account is an agent's config folder with its own login: Claude Code
+# (agent: claude, the default; CLAUDE_CONFIG_DIR) or Codex (agent: codex; CODEX_HOME).
 accounts:
   personal:
     config_dir: ~/.claude      # Claude Code's default folder
@@ -17,6 +19,11 @@ accounts:
   #   config_dir: ~/.claude-work
   #   env:                     # optional extra env vars for this account
   #     ANTHROPIC_API_KEY: sk-ant-...
+  # openai:
+  #   agent: codex
+  #   config_dir: ~/.codex     # Codex's default folder
+  #   env:
+  #     OPENAI_API_KEY: sk-... # optional; otherwise log in with `l` (codex login)
 
 # Sessions to manage. Each one runs in its own tmux session on its host.
 sessions: []
@@ -25,7 +32,7 @@ sessions: []
   #   dir: ~/code/shop-api     # project folder on that host (~ allowed)
   #   account: personal        # key of accounts
   #   note: payments refactor  # optional reminder shown in the UI
-  #   args: ""                 # optional extra flags for `claude`
+  #   args: ""                 # optional extra flags for `claude` / `codex`
 
 notify:
   on_waiting: true             # alert when a session needs approval/input

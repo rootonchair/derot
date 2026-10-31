@@ -32,12 +32,14 @@ hosts:
 accounts:
   personal: {config_dir: ~/.claude}
   work: {config_dir: ~/.claude-work}
+  openai: {agent: codex, config_dir: ~/.codex}
 sessions:
   - {name: api-server, dir: ~/code/api-server, account: work, note: payments API}
   - {name: web-app, dir: ~/code/web-app, account: work}
   - {name: trainer, host: gpu-box, dir: ~/projects/trainer, account: personal}
   - {name: blog, dir: ~/code/blog, account: personal}
   - {name: infra, host: gpu-box, dir: ~/infra, account: work}
+  - {name: mobile-app, dir: ~/code/mobile-app, account: openai}
 """
 
 # ANSI helpers for the fake Claude Code screens
@@ -84,6 +86,20 @@ SCREENS = {
     "blog": header("~/code/blog") + ["", RULE, f'{GREY}❯ Try "write a test for utils.ts"{RESET}', RULE],
 }
 
+CODEX_SCREEN = [
+    f"{BOLD}>_ OpenAI Codex{RESET} {GREY}(v0.164.0){RESET}",
+    f"   {GREY}~/code/mobile-app{RESET}", "",
+    f"{GREY}›{RESET} add offline caching to the feed screen", "",
+    f"{GREY}•{RESET} I'll cache the last page of the feed and serve it when offline.", "",
+    f"{GREY}•{RESET} {BOLD}Ran{RESET} {BLUE}rg{RESET} -n \"fetchFeed\" src",
+    f"  {GREY}└ src/feed/api.ts:12   export async function fetchFeed(page) {{{RESET}",
+    f"     {GREY}src/feed/Feed.tsx:31 const items = await fetchFeed(1){RESET}", "",
+    f"{GREY}•{RESET} {BOLD}Edited{RESET} src/feed/cache.ts {GREEN}(+42){RESET}",
+    f"{GREY}•{RESET} {BOLD}Running{RESET} {BLUE}npm{RESET} test -- feed", "",
+    f"{BLUE}•{RESET} Working {GREY}(41s • esc to interrupt){RESET}", "",
+    f"{GREY}›{RESET} {GREY}Ask Codex to do anything{RESET}",
+]
+
 TYPING = header("~/code/web-app") + [
     f"{GREEN}●{RESET} Added a dark mode toggle to Settings.", "",
     RULE, f"{GREY}❯{RESET} /mo", RULE,
@@ -99,6 +115,7 @@ def statuses(cfg, now):
         "trainer": ("busy", "using Bash", 15),
         "blog": ("idle", "", 3600),
         "infra": ("stopped", "", 86400 * 2),
+        "mobile-app": ("busy", "using shell", 25),
     }
     out = []
     for s in cfg.sessions:
@@ -107,6 +124,8 @@ def statuses(cfg, now):
                     ts=now - ago, transcript="/x" if state != "idle" else "")
         if s.name == "trainer":
             st.prompt = "tune the learning rate schedule, keep the eval loss under 1.9"
+        if s.name == "mobile-app":
+            st.prompt = "add offline caching to the feed screen"
         out.append(st)
     out.sort(key=sessions.sort_key)
     return out
@@ -114,7 +133,8 @@ def statuses(cfg, now):
 
 def patch(typing=False):
     sessions.screen = lambda cfg, name: Screen(
-        "\n".join(TYPING if typing and name == "web-app" else SCREENS.get(name, [])),
+        "\n".join(TYPING if typing and name == "web-app" else
+                  CODEX_SCREEN if name == "mobile-app" else SCREENS.get(name, [])),
         cursor=(6, 6) if typing else None)
     sessions.fit = lambda *a: False
     now = time.time()
@@ -172,6 +192,12 @@ async def working(app, pilot):
     await pilot.pause(0.3)
 
 
+async def codex(app, pilot):
+    table = app.query_one("DataTable")
+    table.move_cursor(row=table.get_row_index("mobile-app"))
+    await pilot.pause(0.3)
+
+
 async def new_session(app, pilot):
     await pilot.press("n")
     await pilot.pause(0.3)
@@ -197,6 +223,7 @@ async def main():
     await shoot("overview", overview)
     await shoot("working", working)
     await shoot("typing", typing, typing=True)
+    await shoot("codex", codex)
     await shoot("new-session", new_session)
     await shoot("resume", resume)
     await shoot("add-machine", add_machine)

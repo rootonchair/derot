@@ -898,7 +898,8 @@ class Derot(App):
             new.sessions = [s for s in new.sessions if s.name != st.name]
             if self.save_config(new):
                 self.forget_worker(old, st.name)
-                self.notify(f"removed {st.name} (its conversations are kept by Claude Code)")
+                self.notify(f"removed {st.name} (its conversations are kept by "
+                            f"{st.account.agent_label})")
 
         self.push_screen(Confirm(f"Remove “{st.name}” from derot?", yes="Remove"), done)
 

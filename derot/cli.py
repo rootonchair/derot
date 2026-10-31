@@ -211,8 +211,8 @@ def cmd_login(args) -> int:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="derot",
-        description="One console for every Claude Code session, across projects, "
-                    "accounts and machines.",
+        description="One console for every Claude Code and Codex session, across "
+                    "projects, accounts and machines.",
     )
     p.add_argument("--version", action="version", version=f"derot {__version__}")
     p.set_defaults(func=cmd_tui)
@@ -256,7 +256,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("-f", "--follow", action="store_true", help="keep printing new lines")
     sp.set_defaults(func=cmd_log)
 
-    sp = sub.add_parser("login", help="open Claude Code with an account's config so you can /login")
+    sp = sub.add_parser("login", help="log in to an account (Claude Code: /login; Codex: codex login)")
     sp.add_argument("account")
     sp.add_argument("--host", default="local")
     sp.set_defaults(func=cmd_login)

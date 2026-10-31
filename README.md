@@ -17,8 +17,8 @@ the console.
 with options) sort to the top, then finished ones, then the ones still working. The summary
 bar counts them, and you get a desktop notification when a session needs you.
 
-**Watch Claude work.** The right-hand panel shows the selected session's details and its
-live screen, exactly as Claude Code draws it, for local and SSH sessions alike.
+**Watch the agent work.** The right-hand panel shows the selected session's details and
+its live screen, exactly as Claude Code or Codex draws it, for local and SSH sessions alike.
 
 ![a session working on a remote GPU machine](docs/screenshots/working.svg)
 
@@ -46,6 +46,8 @@ and the SSH target field lists hosts from your `~/.ssh/config` and `known_hosts`
 **Claude Code and Codex side by side.** Each account belongs to an agent, so Claude Code
 and OpenAI Codex sessions share one list, with the same status, preview, typing and resume.
 
+![a Codex session working next to Claude Code sessions](docs/screenshots/codex.svg)
+
 **Sessions outlive the console.** Every session runs in tmux, so it keeps going when you
 quit derot, close the laptop lid or lose the SSH connection.
 
@@ -54,9 +56,9 @@ quit derot, close the laptop lid or lose the SSH connection.
 - **tmux**: each session is a tmux session `cc-<name>` on a private tmux server
   (`tmux -L derot`), so it survives detaching and never touches your own tmux setup.
 - **SSH**: remote hosts are reached with plain `ssh` (shared ControlMaster connection, one
-  call per host per refresh). Nothing runs on the VM besides tmux, python3 and Claude Code.
+  call per host per refresh). Nothing runs on the VM besides tmux, python3 and the agent.
 - **Hooks**: `derot setup` installs a tiny stdlib-only script, `~/.derot/hook.py`, and
-  registers it as a Claude Code hook. It writes `~/.derot/state/<name>.json` on each event
+  registers it as a Claude Code or Codex hook (both agents have the same hook events). It writes `~/.derot/state/<name>.json` on each event
   (prompt submitted, tool use, permission prompt, stop), so status is accurate without screen
   scraping.
 - **Accounts**: each account is an agent's config folder, with its own login and settings:
@@ -90,13 +92,13 @@ prompt).
 3. Press `Enter` on a session to start it and type into it from the right panel; `Ctrl-q`
    stops typing. `f` opens Claude's own full-screen UI instead.
 
-No YAML editing needed. `e` edits the selected session, `d` removes it, `l` opens Claude Code
-for the session's account so you can `/login`. The config file is still plain YAML if you
+No YAML editing needed. `e` edits the selected session, `d` removes it, `l` logs in to the
+session's account (Claude Code opens so you can `/login`; for Codex it runs `codex login`). The config file is still plain YAML if you
 prefer it (`E` opens it in `$EDITOR`); saving from the console rewrites it without comments
 and keeps your original as `config.yaml.bak`.
 
-A VM needs tmux, python3, Claude Code, and key-based SSH (`ssh my-vm true` works without a
-password prompt). From the command line, the same setup is `derot login ACCOUNT [--host H]`
+A VM needs tmux, python3, Claude Code and/or Codex, and key-based SSH (`ssh my-vm true`
+works without a password prompt). From the command line, the same setup is `derot login ACCOUNT [--host H]`
 and `derot setup`.
 
 <details><summary>Config file reference</summary>

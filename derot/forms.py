@@ -389,7 +389,7 @@ class SessionForm(Form):
             yield Label("Name")
             yield Input(s.name if s else "", placeholder="my-project", id="name", compact=True,
                         disabled=self.running)
-            yield Label("Claude account")
+            yield Label("Account")
             yield Select(self._account_options(), allow_blank=False, id="account", compact=True,
                          value=s.account if s else next(iter(self.cfg.accounts)))
             yield Label("Note (optional)")

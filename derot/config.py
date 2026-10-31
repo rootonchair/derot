@@ -272,7 +272,7 @@ def parse(data, path: Optional[Path] = None) -> Config:
 
 SAVED_HEADER = """\
 # derot configuration (edited from the derot console; comments are not kept).
-# Hosts: machines ("local" is this computer). Accounts: Claude Code config folders.
+# Hosts: machines ("local" is this computer). Accounts: Claude Code or Codex folders.
 # Sessions: a project folder + machine + account. See the README for every option.
 """
 

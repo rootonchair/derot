@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""derot status hook for Claude Code.
+"""derot status hook for Claude Code and Codex (same hook events and payload shape).
 
 Installed to ~/.derot/hook.py and called as `python3 ~/.derot/hook.py <EventName>` with
 the hook JSON payload on stdin. Writes ~/.derot/state/<DEROT_SESSION>.json.
