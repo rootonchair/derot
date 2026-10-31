@@ -976,7 +976,7 @@ class Derot(App):
             with self.suspend():
                 print("Running derot setup…\n")
                 try:
-                    installer.setup(self.cfg)
+                    installer.setup(self.cfg, ask=installer.ask_terminal)
                 except Exception as e:
                     self.trace("setup failed", e)
                     print(f"setup failed: {e}")

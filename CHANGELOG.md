@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `derot setup` (and `u`) offers to install tmux where it's missing, with the machine's
+  package manager (Homebrew, apt, dnf, yum, pacman, apk), and asks first; sudo password
+  prompts work, also over SSH. `derot setup --yes` answers yes.
 - The session list shows just the icon, session and status, so it fits its panel: long names
   are shortened with "…", remote sessions get a short `@machine` tag, and the status is
   never cut off. Account and folder are in the details panel.

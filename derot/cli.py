@@ -47,7 +47,8 @@ def cmd_init(args) -> int:
 def cmd_setup(args) -> int:
     from . import installer
     cfg, _ = _load()
-    return installer.setup(cfg, remove=args.remove)
+    ask = (lambda question: True) if args.yes else installer.ask_terminal
+    return installer.setup(cfg, remove=args.remove, ask=ask)
 
 
 def cmd_ls(args) -> int:
@@ -222,6 +223,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("setup", help="install / remove status hooks on every host+account")
     sp.add_argument("--remove", action="store_true", help="remove the hooks instead")
+    sp.add_argument("-y", "--yes", action="store_true",
+                    help="answer yes to every question (e.g. installing tmux)")
     sp.set_defaults(func=cmd_setup)
 
     sub.add_parser("ls", help="print a status table").set_defaults(func=cmd_ls)

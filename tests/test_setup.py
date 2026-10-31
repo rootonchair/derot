@@ -1,6 +1,9 @@
 import json
+import subprocess
 
-from derot import cli, installer
+import pytest
+
+from derot import cli, config, installer, remote
 
 from .conftest import needs_tmux
 
@@ -132,3 +135,107 @@ sessions: [{{name: a, dir: ~/a}}]
     assert len(derot_cmds(s)) == 10
     assert cli.main(["setup", "--remove"]) == 0
     assert "hooks" not in json.loads((env.home / ".claude" / "settings.json").read_text())
+
+
+# ---------------------------------------------------------------- installing tmux
+
+
+def test_tmux_install_commands():
+    cmd = installer.tmux_install_command
+    assert cmd("brew", "/opt/homebrew/bin/brew", "pass") == "/opt/homebrew/bin/brew install tmux"
+    apt = cmd("apt-get", "/usr/bin/apt-get", "nopass")
+    assert apt.startswith("sudo /usr/bin/apt-get install -y tmux ||") and "update" in apt
+    assert cmd("dnf", "/usr/bin/dnf", "root") == "/usr/bin/dnf install -y tmux"  # no sudo
+    assert cmd("pacman", "/usr/bin/pacman", "pass") == "sudo /usr/bin/pacman -S --noconfirm tmux"
+    assert cmd("apk", "/sbin/apk", "nopass") == "sudo /sbin/apk add tmux"
+    assert cmd("apt-get", "/usr/bin/apt-get", "none") is None  # system package, no sudo
+    assert cmd("", "", "root") is None
+
+
+def _fake_machine(monkeypatch, facts, installs=True):
+    """Make the machine check report no tmux (plus `facts`), and record install attempts."""
+    real_sh = remote.sh
+    state = {"installed": False, "ran": []}
+
+    def sh(host, script, *args, **kw):
+        if script == installer.CHECK_SCRIPT:
+            out = "Linux\ntmux=no\npython3=yes\nclaude=yes\n" + "".join(
+                f"{k}={v}\n" for k, v in facts.items()) + "@@END\n"
+            if state["installed"]:
+                out = out.replace("tmux=no", "tmux=yes")
+            return subprocess.CompletedProcess(script, 0, out, "")
+        if script == "command -v tmux":
+            return subprocess.CompletedProcess(script, 0 if state["installed"] else 1, "", "")
+        return real_sh(host, script, *args, **kw)
+
+    def interactive(host, argv):
+        state["ran"].append(argv[-1])
+        state["installed"] = installs
+        return 0 if installs else 100
+
+    monkeypatch.setattr(remote, "sh", sh)
+    monkeypatch.setattr(remote, "interactive", interactive)
+    return state
+
+
+def _cfg(env):
+    (env.home / "p").mkdir(exist_ok=True)
+    env.write_config(f'hosts: {{local: {{claude: "{env.claude}"}}}}\n'
+                     "sessions: [{name: p, dir: ~/p}]\n")
+    return config.load()
+
+
+def test_setup_offers_to_install_tmux_and_does_on_yes(env, monkeypatch):
+    cfg = _cfg(env)
+    state = _fake_machine(monkeypatch, {"pm": "apt-get:/usr/bin/apt-get", "sudo": "nopass"})
+    asked, lines = [], []
+    ok = installer.setup_host(cfg, cfg.hosts["local"], False, lines.append,
+                              ask=lambda q: asked.append(q) or True)
+    assert ok
+    assert "tmux isn't installed on local" in asked[0] and "apt-get install -y tmux" in asked[0]
+    assert state["ran"] == [installer.tmux_install_command("apt-get", "/usr/bin/apt-get",
+                                                           "nopass")]
+    assert any("✓ tmux (just installed)" in ln for ln in lines)
+
+
+def test_setup_never_installs_without_a_yes(env, monkeypatch):
+    cfg = _cfg(env)
+    state = _fake_machine(monkeypatch, {"pm": "brew:/opt/homebrew/bin/brew", "sudo": "pass"})
+    lines = []
+    assert not installer.setup_host(cfg, cfg.hosts["local"], False, lines.append,
+                                    ask=lambda q: False)
+    assert state["ran"] == []
+    assert any("tmux not found" in ln and "brew install tmux" in ln for ln in lines)
+    # background setups (after saving a form, before a start) have nobody to ask
+    lines.clear()
+    assert not installer.setup_host(cfg, cfg.hosts["local"], False, lines.append)
+    assert state["ran"] == [] and any("press u" in ln for ln in lines)
+
+
+def test_setup_without_a_way_to_install_tmux_says_so(env, monkeypatch):
+    cfg = _cfg(env)
+    state = _fake_machine(monkeypatch, {"sudo": "none"})  # no package manager either
+    lines = []
+    assert not installer.setup_host(cfg, cfg.hosts["local"], False, lines.append,
+                                    ask=lambda q: True)
+    assert state["ran"] == [] and any("ask an admin" in ln for ln in lines)
+
+
+def test_failed_tmux_install_is_reported(env, monkeypatch):
+    cfg = _cfg(env)
+    state = _fake_machine(monkeypatch, {"pm": "dnf:/usr/bin/dnf", "sudo": "pass"},
+                          installs=False)
+    asked, lines = [], []
+    assert not installer.setup_host(cfg, cfg.hosts["local"], False, lines.append,
+                                    ask=lambda q: asked.append(q) or True)
+    assert "sudo will ask for your password" in asked[0]
+    assert state["ran"] and any("installing it didn't work" in ln for ln in lines)
+
+
+def test_setup_yes_installs_without_asking(env, monkeypatch, capsys):
+    _cfg(env)
+    state = _fake_machine(monkeypatch, {"pm": "brew:/opt/homebrew/bin/brew", "sudo": "pass"})
+    monkeypatch.setattr("builtins.input", lambda *a: pytest.fail("asked a question"))
+    assert cli.main(["setup", "--yes"]) == 0
+    assert state["ran"] == ["/opt/homebrew/bin/brew install tmux"]
+    assert "tmux (just installed)" in capsys.readouterr().out

@@ -4,8 +4,9 @@ settings (Claude Code: settings.json; Codex: hooks.json)."""
 from __future__ import annotations
 
 import hashlib
+import shlex
 from pathlib import Path
-from typing import Callable, Dict, List, Set, Tuple
+from typing import Callable, Dict, List, Optional, Set, Tuple
 
 from . import remote
 from .config import Account, Config, Host
@@ -39,6 +40,17 @@ find_cmd() {
 }
 if [ -n "$2" ]; then
   if [ -n "$(find_cmd "$2")" ]; then echo "codex=yes"; else echo "codex=no"; fi
+fi
+# no tmux: how it could be installed (package manager, and whether sudo needs a password)
+if ! command -v tmux >/dev/null 2>&1; then
+  if [ "$(id -u)" = 0 ]; then echo "sudo=root"
+  elif command -v sudo >/dev/null 2>&1; then
+    if sudo -n true 2>/dev/null; then echo "sudo=nopass"; else echo "sudo=pass"; fi
+  else echo "sudo=none"; fi
+  if [ "$(uname -s)" = Darwin ]; then pms="brew"; else pms="apt-get dnf yum pacman apk brew"; fi
+  for m in $pms; do
+    mp=$(find_cmd "$m"); [ -n "$mp" ] && { echo "pm=$m:$mp"; break; }
+  done
 fi
 [ -n "$1" ] || { echo "@@END"; exit 0; }
 p=$(find_cmd "$1")
@@ -157,9 +169,48 @@ def hook_source() -> str:
     return (Path(__file__).parent / "hook.py").read_text()
 
 
+def tmux_install_command(pm: str, path: str, sudo: str) -> Optional[str]:
+    """The command that installs tmux with the machine's package manager, or None if there's
+    no way without help (no package manager, or no sudo for a system one)."""
+    if not pm:
+        return None
+    exe = shlex.quote(path or pm)
+    if pm == "brew":
+        return f"{exe} install tmux"  # Homebrew never needs sudo
+    if sudo == "none":
+        return None
+    exe = exe if sudo == "root" else f"sudo {exe}"
+    if pm == "apt-get":  # a fresh VM often has no package lists yet
+        return f"{exe} install -y tmux || {{ {exe} update && {exe} install -y tmux; }}"
+    return {"dnf": f"{exe} install -y tmux", "yum": f"{exe} install -y tmux",
+            "pacman": f"{exe} -S --noconfirm tmux", "apk": f"{exe} add tmux"}.get(pm)
+
+
+def _install_tmux(host: Host, found: Dict[str, str], ask: Optional[Callable[[str], bool]],
+                  out: Callable[[str], None]) -> Optional[bool]:
+    """Offer to install tmux. True: installed; False: tried and failed; None: not tried
+    (no way to, or the answer was no / nobody to ask)."""
+    pm, _, path = (found.get("pm") or "").partition(":")
+    cmd = tmux_install_command(pm, path, found.get("sudo", ""))
+    if not cmd or ask is None:
+        return None
+    password = found.get("sudo") == "pass" and pm != "brew"
+    if not ask(f"tmux isn't installed on {host.name}. Install it now with `{cmd}`?"
+               + (" (sudo will ask for your password)" if password else "")):
+        return None
+    out(f"  … installing tmux on {host.name}: {cmd}")
+    log.info("installing tmux on %s: %s", host.name, cmd)
+    rc = remote.interactive(host, ["sh", "-c", cmd])
+    ok = remote.sh(host, "command -v tmux").returncode == 0
+    if not ok:
+        log.error("installing tmux on %s failed (exit %s)", host.name, rc)
+    return ok
+
+
 def _hint(tool: str, host: Host, is_mac: bool) -> str:
     if tool == "tmux":
-        return "brew install tmux" if is_mac else "sudo apt install tmux"
+        return ("install Homebrew (brew.sh), then `brew install tmux`" if is_mac
+                else "ask an admin to install tmux (no package manager or sudo found here)")
     if tool == "python3":
         return "brew install python" if is_mac else "sudo apt install python3"
     if tool == "codex":
@@ -243,7 +294,10 @@ def ensure_hooks(cfg: Config, host: Host, account: Account,
     return setup_host(cfg, host, False, out)
 
 
-def setup_host(cfg: Config, host: Host, remove: bool, out: Callable[[str], None]) -> bool:
+def setup_host(cfg: Config, host: Host, remove: bool, out: Callable[[str], None],
+               ask: Optional[Callable[[str], bool]] = None) -> bool:
+    """Check a machine, install derot's hook and wire it into each account. With `ask`
+    (an interactive setup), a missing tmux can be installed after a yes."""
     label = "this Mac" if host.is_local else host.ssh
     out(f"{host.name} ({label})")
     log.info("setup%s on %s (%s)", " --remove" if remove else "", host.name, label)
@@ -270,14 +324,34 @@ def setup_host(cfg: Config, host: Host, remove: bool, out: Callable[[str], None]
         lines = proc.stdout.splitlines()
         is_mac = bool(lines) and lines[0].strip() == "Darwin"
         found: Dict[str, bool] = {}
+        facts: Dict[str, str] = {}  # pm / sudo: how tmux could be installed
         extras: List[str] = []
         for ln in lines:
             k, _, v = ln.strip().partition("=")
             if k == "events":
                 extras = [e for e in EXTRA_EVENTS if e in v.split(",")]
+            elif k in ("pm", "sudo"):
+                facts[k] = v
             elif v:
                 found[k] = v == "yes"
+        reported = set()
+        if not found.get("tmux"):
+            reported.add("tmux")
+            installed = _install_tmux(host, facts, ask, out)
+            if installed:
+                found["tmux"] = True
+                mark(True, "tmux (just installed)")
+            elif installed is False:
+                mark(False, "tmux: installing it didn't work (see the output above)")
+            else:
+                pm, _, path = (facts.get("pm") or "").partition(":")
+                cmd = tmux_install_command(pm, path, facts.get("sudo", ""))
+                mark(False, "tmux not found → " + (
+                    f"run `derot setup` (or press u) to install it with `{cmd}`" if cmd
+                    else _hint("tmux", host, is_mac)))
         for tool in ("tmux", "python3", *sorted(agents)):
+            if tool in reported:
+                continue
             if found.get(tool):
                 mark(True, f"{tool} ({host.command(tool)})" if tool in agents else tool)
             else:
@@ -318,7 +392,16 @@ def setup_host(cfg: Config, host: Host, remove: bool, out: Callable[[str], None]
     return ok
 
 
-def setup(cfg: Config, remove: bool = False, out: Callable[[str], None] = print) -> int:
+def ask_terminal(question: str) -> bool:
+    """Ask a yes/no question in the terminal (no answer means no)."""
+    try:
+        return input(f"  ? {question} [y/N] ").strip().lower() in ("y", "yes")
+    except EOFError:
+        return False
+
+
+def setup(cfg: Config, remove: bool = False, out: Callable[[str], None] = print,
+          ask: Optional[Callable[[str], bool]] = None) -> int:
     hosts = cfg.used_hosts()
     if not hosts:
         out("No sessions in the config yet, so there is nothing to set up.")
@@ -326,7 +409,7 @@ def setup(cfg: Config, remove: bool = False, out: Callable[[str], None] = print)
         return 0
     all_ok = True
     for host in hosts:
-        all_ok = setup_host(cfg, host, remove, out) and all_ok
+        all_ok = setup_host(cfg, host, remove, out, ask) and all_ok
     out("")
     if all_ok:
         out("All done." if not remove else "Status hooks removed.")

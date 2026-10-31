@@ -78,12 +78,16 @@ covered by CI but haven't seen much real use yet.
 pipx install derot        # or: uv tool install derot
 ```
 
+(No pipx yet? On macOS `brew install pipx`, on Debian/Ubuntu `sudo apt install pipx`.)
+
 Upgrade with `pipx upgrade derot` (or `uv tool upgrade derot`). For the latest unreleased
 code from `main`: `pipx install git+https://github.com/rootonchair/derot`.
 
-On macOS, `brew install tmux pipx` first. Each SSH machine needs `tmux`, `python3`, the
-agent(s) you use there, and key-based SSH access (`ssh my-vm true` works without a password
-prompt).
+Each SSH machine needs `python3`, the agent(s) you use there, and key-based SSH access
+(`ssh my-vm true` works without a password prompt). It also needs tmux, but you don't have to
+install it yourself: when a machine doesn't have it, `derot setup` (or `u` in the console)
+offers to install it with that machine's package manager (Homebrew, apt, dnf, yum, pacman or
+apk) and asks first. `derot setup --yes` answers yes for you.
 
 ## Setup
 
