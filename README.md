@@ -2,7 +2,7 @@
 
 [![tests](https://github.com/rootonchair/derot/actions/workflows/tests.yml/badge.svg)](https://github.com/rootonchair/derot/actions/workflows/tests.yml)
 [![PyPI](https://img.shields.io/pypi/v/derot.svg)](https://pypi.org/project/derot/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/rootonchair/derot/blob/main/LICENSE)
 
 **Stop coding-agent sessions rotting in forgotten terminals.** derot is one terminal console
 for every **Claude Code** and **Codex** session you run: across **projects**, **accounts** and
@@ -10,7 +10,7 @@ for every **Claude Code** and **Codex** session you run: across **projects**, **
 See which sessions need you, watch the agent work, and type into any of them without leaving
 the console.
 
-![derot: a session needs approval, its live screen on the right](docs/screenshots/overview.svg)
+![derot: a session needs approval, its live screen on the right](https://raw.githubusercontent.com/rootonchair/derot/main/docs/screenshots/overview.svg)
 
 ## Features
 
@@ -21,33 +21,33 @@ bar counts them, and you get a desktop notification when a session needs you.
 **Watch the agent work.** The right-hand panel shows the selected session's details and
 its live screen, exactly as Claude Code or Codex draws it, for local and SSH sessions alike.
 
-![a session working on a remote GPU machine](docs/screenshots/working.svg)
+![a session working on a remote GPU machine](https://raw.githubusercontent.com/rootonchair/derot/main/docs/screenshots/working.svg)
 
 **Type into any session from the console.** Press Enter or click the right panel and every
 key goes straight to Claude: slash commands, `/model`, menus, autocomplete, Esc, paste. Press
 `1`–`9` on the list to answer a prompt in one keystroke, or `f` for Claude's own full-screen
 UI. `Ctrl-q` always brings you back.
 
-![typing into a session: Claude's slash-command menu in the preview](docs/screenshots/typing.svg)
+![typing into a session: Claude's slash-command menu in the preview](https://raw.githubusercontent.com/rootonchair/derot/main/docs/screenshots/typing.svg)
 
 **Pick up old conversations.** `R` lists a session's past conversations with their titles,
 age and last prompt, and resumes the one you pick. `c` continues the session's own last
 conversation.
 
-![the resume picker](docs/screenshots/resume.svg)
+![the resume picker](https://raw.githubusercontent.com/rootonchair/derot/main/docs/screenshots/resume.svg)
 
 **No YAML required.** Add sessions, machines and accounts from forms. The project folder
 field lists matching folders as you type, on the chosen machine (over SSH for remote ones),
 and the SSH target field lists hosts from your `~/.ssh/config` and `known_hosts`.
 
-![new session form with folder suggestions from an SSH machine](docs/screenshots/new-session.svg)
+![new session form with folder suggestions from an SSH machine](https://raw.githubusercontent.com/rootonchair/derot/main/docs/screenshots/new-session.svg)
 
-![add machine form with SSH targets](docs/screenshots/add-machine.svg)
+![add machine form with SSH targets](https://raw.githubusercontent.com/rootonchair/derot/main/docs/screenshots/add-machine.svg)
 
 **Claude Code and Codex side by side.** Each account belongs to an agent, so Claude Code
 and OpenAI Codex sessions share one list, with the same status, preview, typing and resume.
 
-![a Codex session working next to Claude Code sessions](docs/screenshots/codex.svg)
+![a Codex session working next to Claude Code sessions](https://raw.githubusercontent.com/rootonchair/derot/main/docs/screenshots/codex.svg)
 
 **Sessions outlive the console.** Every session runs in tmux, so it keeps going when you
 quit derot, close the laptop lid or lose the SSH connection.
@@ -215,7 +215,7 @@ the status hook itself go to `~/.derot/hook-errors.log` on that machine.
 
 ## Known issues
 
-See [tracking/](tracking/README.md) for everything open. The main ones:
+See [tracking/](https://github.com/rootonchair/derot/blob/main/tracking/README.md) for everything open. The main ones:
 
 - Quitting waits silently for background work to finish (up to a minute while hooks are
   being set up).
@@ -234,11 +234,11 @@ uv venv && uv pip install -e '.[test]'
 .venv/bin/python scripts/screenshots.py   # regenerate docs/screenshots from demo data
 ```
 
-Releases are published to PyPI from GitHub Actions; see [RELEASING.md](RELEASING.md).
+Releases are published to PyPI from GitHub Actions; see [RELEASING.md](https://github.com/rootonchair/derot/blob/main/RELEASING.md).
 
 ## License
 
-[MIT](LICENSE).
+[MIT](https://github.com/rootonchair/derot/blob/main/LICENSE).
 
 derot is an independent project. It is not affiliated with, endorsed by or sponsored by
 Anthropic or OpenAI. Claude and Claude Code are trademarks of Anthropic; Codex and OpenAI are
