@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1 (2026-11-01)
+
+- README: images and links use full URLs, so the screenshots show on PyPI.
+
 ## 0.1.0 (2026-11-01)
 
 First public version.
