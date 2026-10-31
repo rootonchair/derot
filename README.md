@@ -211,6 +211,8 @@ uv venv && uv pip install -e '.[test]'
 .venv/bin/python scripts/screenshots.py   # regenerate docs/screenshots from demo data
 ```
 
+Releases are published to PyPI from GitHub Actions; see [RELEASING.md](RELEASING.md).
+
 ## License
 
 [MIT](LICENSE).

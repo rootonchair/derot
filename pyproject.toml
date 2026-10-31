@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "derot"
-version = "0.1.0"
+dynamic = ["version"]
 description = "One terminal console for every Claude Code session across projects, accounts and machines"
 readme = "README.md"
 license = {text = "MIT"}
@@ -41,6 +41,9 @@ derot = "derot.cli:main"
 
 [tool.setuptools]
 packages = ["derot"]
+
+[tool.setuptools.dynamic]
+version = {attr = "derot.__version__"}
 
 [tool.setuptools.package-data]
 derot = ["example_config.yaml"]
